@@ -311,7 +311,7 @@ namespace ModBus_Server
             ButtonPause.ToolTip = "Cambia modalità in pausa, il server continua a rispondere ai comandi ModBus ma non aggiorna più la grafica permettendo all'utente di modificare il contenuto dei regsitri).";
             ButtonStop.ToolTip = "Cambia modalità in stop (il server non risponde più ai comandi ModBus (utile per simulare un guasto o interrompere brevemente le risposte verso un master).";
 
-            checkBoxFocusReadRows.ToolTip = "Scorre automaticamente le tabelle all'ultimo punto interrogato (da un master)";
+            checkBoxFocusWriteRows.ToolTip = "Scorre automaticamente le tabelle all'ultimo punto scritto (da un master)";
             checkBoxFocusReadRows.ToolTip = "Scorre automaticamente le tabelle all'ultimo punto letto (da un master)";
             checkBoxDisableGraphics.ToolTip = "Disattiva gli aspetti grafici (colori e refresh delle tabelle) per avere il minor tempo di risposta possibile";
 
@@ -371,7 +371,7 @@ namespace ModBus_Server
                 pictureBoxRunningAs.Background = Brushes.Lime;
 
 
-                buttonSerialActive.Content = "Disattiva";
+                buttonSerialActive.Content = "Disconnect";
 
                 try
                 {
@@ -471,7 +471,7 @@ namespace ModBus_Server
                     }
                     catch { }
 
-                    buttonSerialActive.Content = "Attiva";
+                    buttonSerialActive.Content = "Connect";
 
                     Console.WriteLine("Errore apertura porta seriale");
                     Console.WriteLine(error);
@@ -492,7 +492,7 @@ namespace ModBus_Server
                 pictureBoxRunningAs.Background = Brushes.LightGray;
 
 
-                buttonSerialActive.Content = "Attiva";
+                buttonSerialActive.Content = "Connect";
 
                 radioButtonModeSerial.IsEnabled = true;
                 radioButtonModeTcp.IsEnabled = true;
@@ -622,7 +622,7 @@ namespace ModBus_Server
                 config.nome_applicazione = textBoxNomeApplicazione.Text;
 
                 config.checkBoxColorMenu_ = (bool)checkBoxColorMenu.IsChecked;
-                config.colorMenuStrip_ = colorMenuStrip;
+                config.colorMenuStrip_ = colorMenuStrip != null ? colorMenuStrip.ToString() : null;
 
                 //---------------------------------------------
                 //----------------Tabella coils----------------
@@ -819,7 +819,7 @@ namespace ModBus_Server
                 labelColorCellError.Background = colorErrorCell;
 
                 checkBoxColorMenu.IsChecked = config.checkBoxColorMenu_;
-                colorMenuStrip = config.colorMenuStrip_;
+                if (config.colorMenuStrip_ != null) { colorMenuStrip = (SolidColorBrush)bc.ConvertFromString(config.colorMenuStrip_); }
 
                 if ((bool)checkBoxColorMenu.IsChecked)
                 {
@@ -1016,7 +1016,7 @@ namespace ModBus_Server
 
                     //textBoxModbusAddress.IsEnabled = false;
 
-                    buttonTcpActive.Content = "Disattiva";
+                    buttonTcpActive.Content = "Stop";
 
                     textBoxTcpClientIpAddress.IsEnabled = false;
                     textBoxTcpClientPort.IsEnabled = false;
@@ -1039,7 +1039,7 @@ namespace ModBus_Server
 
                     // MANCA PARTE SULLO STOP DEL THREAD
 
-                    buttonTcpActive.Content = "Attiva";
+                    buttonTcpActive.Content = "Start";
 
                     radioButtonModeSerial.IsEnabled = true;
                     radioButtonModeTcp.IsEnabled = true;
@@ -1078,11 +1078,13 @@ namespace ModBus_Server
         private void buttonClearSent_Click(object sender, RoutedEventArgs e)
         {
             richTextBoxOutgoingPackets.Document.Blocks.Clear();
+            richTextBoxOutgoingPackets.AppendText("\n");
         }
 
         private void buttonClearReceived_Click(object sender, RoutedEventArgs e)
         {
             richTextBoxIncomingPackets.Document.Blocks.Clear();
+            richTextBoxIncomingPackets.AppendText("\n");
         }
 
         private void richTextBoxAppend(RichTextBox richTextBox, String append)
@@ -1094,11 +1096,13 @@ namespace ModBus_Server
         private void buttonClearSerialStatus_Click(object sender, RoutedEventArgs e)
         {
             richTextBoxStatus.Document.Blocks.Clear();
+            richTextBoxStatus.AppendText("\n");
         }
 
         private void buttonClearTcpStatus_Click(object sender, RoutedEventArgs e)
         {
             richTextBoxStatus.Document.Blocks.Clear();
+            richTextBoxStatus.AppendText("\n");
         }
 
         private void buttonSaveLogSending_Click(object sender, RoutedEventArgs e)
@@ -1473,7 +1477,10 @@ namespace ModBus_Server
         private void buttonClearAll_Click(object sender, RoutedEventArgs e)
         {
             richTextBoxIncomingPackets.Document.Blocks.Clear();
+            richTextBoxIncomingPackets.AppendText("\n");
+
             richTextBoxOutgoingPackets.Document.Blocks.Clear();
+            richTextBoxOutgoingPackets.AppendText("\n");
         }
 
         private void checkBoxAddLinesToEnd_CheckedChanged(object sender, RoutedEventArgs e)
@@ -1965,7 +1972,7 @@ namespace ModBus_Server
         public string[] holdings_C { get; set; }
 
         public bool checkBoxColorMenu_ { get; set; }
-        public SolidColorBrush colorMenuStrip_ { get; set; }
+        public string colorMenuStrip_ { get; set; }
         public string pathToConfiguration_ { get; set; }
 
         public bool? checkBoxPinWIndow_ { get; set; }
