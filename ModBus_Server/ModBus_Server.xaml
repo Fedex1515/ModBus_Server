@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ModBus_Server"
         mc:Ignorable="d"
-        Title="MainWindow" Height="575.734" Width="843.478" Closing="Window_Closing" Loaded="Form1_Load">
+        Title="MainWindow" Height="575.734" Width="843.478" Closing="Window_Closing" Loaded="Form1_Load" KeyUp="Window_KeyUp">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="30px" />
@@ -25,6 +25,10 @@
                 <MenuItem x:Name="modificaToolStripMenuItem" Header="Edit">
                     <MenuItem x:Name="impostazioniToolStripMenuItem" Header="Settings" Click="impostazioniToolStripMenuItem_Click" />
                 </MenuItem>
+                <MenuItem x:Name="viewToolStripMenuItem" Header="View">
+                    <MenuItem x:Name="languageToolStripMenu" Header="Language"/>
+                    <MenuItem x:Name="logToolStripMenu" Header="Log pacchetti" Click="logToolStripMenu_Click"/>
+                </MenuItem>
                 <MenuItem x:Name="databaseToolStripMenuItem" Header="Database">
                     <MenuItem x:Name="salvaConfigurazioneNelDatabaseToolStripMenuItem" Header="Save configuration to database" Click="salvaConfigurazioneNelDatabaseToolStripMenuItem_Click" />
                     <MenuItem x:Name="caricaConfigurazioneDalDatabaseToolStripMenuItem" Header="Load configuration from database" Click="caricaConfigurazioneDalDatabaseToolStripMenuItem_Click" />
@@ -32,16 +36,16 @@
                     <MenuItem x:Name="gestisciDatabaseToolStripMenuItem" Header="Manage database" Click="gestisciDatabaseToolStripMenuItem_Click" />
                 </MenuItem>
                 <MenuItem x:Name="registriToolStripMenuItem" Header="Import">
-                    <MenuItem x:Name="holdingSuiteToolStripMenuItem" Header="Coils table" Click="holdingSuiteToolStripMenuItem_Click" />
-                    <MenuItem x:Name="inputTableToolStripMenuItem" Header="Input table" Click="inputTableToolStripMenuItem_Click" />
-                    <MenuItem x:Name="inputRegisterTableToolStripMenuItem" Header="Input register table" Click="inputRegisterTableToolStripMenuItem_Click" />
-                    <MenuItem x:Name="holdingTableToolStripMenuItem" Header="Holding table" Click="holdingTableToolStripMenuItem_Click" />
+                    <MenuItem x:Name="coilsImportToolStripMenuItem" Header="Coils table" Click="coilsTableImportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="inputImportToolStripMenuItem" Header="Input table" Click="inputImportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="inputRegisterImportToolStripMenuItem" Header="Input register table" Click="inputRegisterImportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="holdingImportToolStripMenuItem" Header="Holding table" Click="holdingImportToolStripMenuItem_Click" />
                 </MenuItem>
                 <MenuItem x:Name="exportToolStripMenuItem" Header="Export">
-                    <MenuItem x:Name="coilsTableToolStripMenuItem" Header="Coils table" Click="coilsTableToolStripMenuItem_Click" />
-                    <MenuItem x:Name="inputTableToolStripMenuItem1" Header="Input table" Click="inputTableToolStripMenuItem1_Click" />
-                    <MenuItem x:Name="inputRegisterTableToolStripMenuItem1" Header="Input register table" Click="inputRegisterTableToolStripMenuItem1_Click" />
-                    <MenuItem x:Name="holdingTableToolStripMenuItem1" Header="Holding table" Click="holdingTableToolStripMenuItem1_Click" />
+                    <MenuItem x:Name="coilsExportToolStripMenuItem" Header="Coils table" Click="coilsExportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="inputExportToolStripMenuItem1" Header="Input table" Click="inputExportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="inputRegisterExportToolStripMenuItem1" Header="Input register table" Click="inputRegisterExportToolStripMenuItem_Click" />
+                    <MenuItem x:Name="holdingExportToolStripMenuItem1" Header="Holding table" Click="holdingExportToolStripMenuItem_Click" />
                 </MenuItem>
                 <MenuItem x:Name="infoToolStripMenuItem" Header="Info">
                     <MenuItem x:Name="licenseToolStripMenuItem" Header="License" Click="licenseToolStripMenuItem_Click" />
@@ -159,11 +163,11 @@
                     <Border x:Name="pictureBoxSerial" Margin="19,14,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="25"/>
                     <Label Content="Seriale" HorizontalAlignment="Left" Margin="49,10,0,0" VerticalAlignment="Top" FontSize="16" Grid.Column="0"/>
                     <Label Content="TCP" HorizontalAlignment="Left" Margin="49,10,0,0" VerticalAlignment="Top" FontSize="16" Grid.Column="1"/>
-                    <Label Content="Baud rate:" HorizontalAlignment="Left" Margin="10,94,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="0"/>
+                    <Label x:Name="labelBaudRate" Content="Baud rate:" HorizontalAlignment="Left" Margin="10,94,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="0"/>
                     <Label HorizontalAlignment="Left" Margin="10,68,0,0" VerticalAlignment="Top" FontSize="18" Grid.Column="0"/>
                     <Label HorizontalAlignment="Left" Margin="10,68,0,0" VerticalAlignment="Top" FontSize="18" Grid.Column="0"/>
-                    <Label Content="Parity:" HorizontalAlignment="Left" Margin="10,133,0,0" VerticalAlignment="Top" FontSize="14"/>
-                    <Label Content="Stop bits:" HorizontalAlignment="Left" Margin="10,172,0,0" VerticalAlignment="Top" FontSize="14"/>
+                    <Label x:Name="labelParity" Content="Parity:" HorizontalAlignment="Left" Margin="10,133,0,0" VerticalAlignment="Top" FontSize="14"/>
+                    <Label x:Name="labelStopBits" Content="Stop bits:" HorizontalAlignment="Left" Margin="10,172,0,0" VerticalAlignment="Top" FontSize="14"/>
                     <ComboBox x:Name="comboBoxSerialPort" HorizontalAlignment="Left" Margin="138,60,0,0" VerticalAlignment="Top" Width="120" FontSize="14" Height="30"/>
                     <ComboBox x:Name="comboBoxSerialSpeed" HorizontalAlignment="Left" Margin="138,99,0,0" VerticalAlignment="Top" Width="120" FontSize="14" Height="30">
                         <ComboBoxItem Content="4800"/>
@@ -184,9 +188,9 @@
                         <ComboBoxItem Content="1.5"/>
                         <ComboBoxItem Content="2"/>
                     </ComboBox>
-                    <Label Content="Port:" HorizontalAlignment="Left" Margin="10,58,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="0"/>
-                    <Label Content="Port:" HorizontalAlignment="Left" Margin="10,94,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="1"/>
-                    <Label Content="IP:" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="14" Margin="10,53,0,0" Grid.Column="1"/>
+                    <Label x:Name="labelPort" Content="Port:" HorizontalAlignment="Left" Margin="10,58,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="0"/>
+                    <Label x:Name="labelPort1" Content="Port:" HorizontalAlignment="Left" Margin="10,94,0,0" VerticalAlignment="Top" FontSize="14" Grid.Column="1"/>
+                    <Label x:Name="labelIp" Content="IP:" HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="14" Margin="10,53,0,0" Grid.Column="1"/>
                     <TextBox x:Name="textBoxTcpClientIpAddress" HorizontalAlignment="Left" Height="30" Margin="85,56,0,0" TextWrapping="Wrap" Text="192.168.1.100" VerticalAlignment="Top" Width="271" FontSize="14" Grid.Column="1"/>
                     <TextBox x:Name="textBoxTcpClientPort" HorizontalAlignment="Left" Height="30" Margin="85,91,0,0" TextWrapping="Wrap" Text="502" VerticalAlignment="Top" Width="93" FontSize="14" Grid.Column="1"/>
                     <Button x:Name="buttonSerialActive" Content="Connect" HorizontalAlignment="Left" Margin="246,232,0,0" VerticalAlignment="Top" Width="92" Grid.Column="0" Click="buttonSerialActive_Click" FontSize="14" Height="30"/>
@@ -361,14 +365,7 @@
                         <ColumnDefinition/>
                         <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
-                    <RichTextBox x:Name="richTextBoxOutgoingPackets" Margin="10,44,10,10" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontSize="13">
-                        <FlowDocument>
-                            <Paragraph>
-                                <Run Text=""/>
-                            </Paragraph>
-                        </FlowDocument>
-                    </RichTextBox>
-                    <RichTextBox x:Name="richTextBoxIncomingPackets" Margin="10,44,10,10" Grid.Column="1" ScrollViewer.CanContentScroll="True" Block.LineHeight="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontSize="13">
+                    <RichTextBox x:Name="richTextBoxPackets" Margin="10,41,10.429,10.143" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontSize="13" Grid.ColumnSpan="2" IsReadOnly="True">
                         <FlowDocument>
                             <Paragraph>
                                 <Run Text=""/>
@@ -376,11 +373,7 @@
                         </FlowDocument>
                     </RichTextBox>
                     <Button x:Name="buttonExportSentPackets" Content="Export" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Click="buttonExportSentPackets_Click" FontSize="13"/>
-                    <Button x:Name="buttonClearSent" Content="Clear" HorizontalAlignment="Left" Margin="90,10,0,0" VerticalAlignment="Top" Width="75" Click="buttonClearSent_Click" FontSize="13"/>
-                    <Label Content="Sent" HorizontalAlignment="Left" Margin="170,7,0,0" VerticalAlignment="Top" FontSize="13"/>
-                    <Button x:Name="buttonExportReceivedPackets" Content="Export" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Grid.Column="1" Click="buttonExportReceivedPackets_Click" FontSize="13"/>
-                    <Button x:Name="buttonClearReceived" Content="Clear" HorizontalAlignment="Left" Margin="90,10,0,0" VerticalAlignment="Top" Width="75" Grid.Column="1" Click="buttonClearReceived_Click" FontSize="13"/>
-                    <Label Content="Received" HorizontalAlignment="Left" Margin="170,7,0,0" VerticalAlignment="Top" Grid.Column="1" FontSize="13"/>
+                    <Button x:Name="buttonClearSent" Content="Clear" HorizontalAlignment="Left" Margin="90,10,0,0" VerticalAlignment="Top" Width="75" Click="buttonClearAll_Click" FontSize="13"/>
                     <Button x:Name="buttonClearAll" Content="Clear All" HorizontalAlignment="Left" Margin="321,10,0,0" VerticalAlignment="Top" Width="75" Grid.Column="1" Click="buttonClearAll_Click" FontSize="13"/>
                     <CheckBox x:Name="checkBoxAddLinesToEnd" Content="Add log to end" HorizontalAlignment="Left" Margin="273,13,0,0" VerticalAlignment="Top" Checked="checkBoxAddLinesToEnd_CheckedChanged" Unchecked="checkBoxAddLinesToEnd_CheckedChanged" FontSize="13"/>
                 </Grid>

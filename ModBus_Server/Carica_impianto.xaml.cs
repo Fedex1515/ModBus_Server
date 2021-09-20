@@ -13,6 +13,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.IO;
 
+// Libreria lingue
+using LanguageLib; // Libreria custom per caricare etichette in lingue differenti
+
 namespace ModBus_Server
 {
     /// <summary>
@@ -22,9 +25,13 @@ namespace ModBus_Server
     {
         public string path { get; set; }
 
-        public Carica_impianto(String defaultPath)
+        Language lang;
+
+        public Carica_impianto(String defaultPath, MainWindow main_)
         {
             InitializeComponent();
+
+            lang = new Language(this);
 
             String[] subFolders = Directory.GetDirectories("Json\\");
 
@@ -34,6 +41,17 @@ namespace ModBus_Server
             {
                 comboBoxImpianto.Items.Add(subFolders[i].Substring(subFolders[i].IndexOf('\\') + 1));
             }
+
+            // Centro la finestra
+            double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
+            double screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
+            double windowWidth = this.Width;
+            double windowHeight = this.Height;
+
+            this.Left = (screenWidth / 2) - (windowWidth / 2);
+            this.Top = (screenHeight / 2) - (windowHeight / 2);
+
+            lang.loadLanguageTemplate(main_.language);
 
             comboBoxImpianto.SelectedItem = defaultPath;
         }

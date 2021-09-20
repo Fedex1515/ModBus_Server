@@ -85,6 +85,9 @@ using System.Diagnostics;
 // Libreria JSON
 using System.Web.Script.Serialization;
 
+// Libreria lingue
+using LanguageLib; // Libreria custom per caricare etichette in lingue differenti
+
 namespace ModBus_Server
 {
     /// <summary>
@@ -131,7 +134,7 @@ namespace ModBus_Server
         const int SW_HIDE = 0;
         const int SW_SHOW = 5;
 
-        ModBus_Chicco ModBus;
+        public ModBus_Chicco ModBus;
 
         public SerialPort serialPort = new SerialPort();
 
@@ -142,9 +145,46 @@ namespace ModBus_Server
         SaveFileDialog saveFileDialogBox;
         OpenFileDialog openFileDialogBox;
 
+        Thread threadDequeue;
+
+        public string language = "IT";
+
+        Language lang;
+
+        public bool logWindowIsOpen = false;
+        public bool dequeueExit = false;
+
+        public int LogLimitRichTextBox = 2000;
+
+        public bool ShowAlertEditMode = false;
+
+        bool scrolled_log = false;
+        int count_log = 0;
+
+        bool scrolled_status = false;
+        int count_status = 0;
+
         public MainWindow()
         {
             InitializeComponent();
+
+            lang = new Language(this);
+
+            // Menu lingua
+            languageToolStripMenu.Items.Clear();
+
+            foreach (string lang in Directory.GetFiles(Directory.GetCurrentDirectory() + "//Lang"))
+            {
+                var tmp = new MenuItem();
+
+                tmp.Header = System.IO.Path.GetFileNameWithoutExtension(lang);
+                tmp.IsCheckable = true;
+                tmp.Click += MenuItemLanguage_Click;
+
+                languageToolStripMenu.Items.Add(tmp);
+            }
+
+            lang.loadLanguageTemplate(language);
 
             pathToConfiguration = defaultPathToConfiguration;
 
@@ -195,6 +235,23 @@ namespace ModBus_Server
             updateStartPauseStop();
         }
 
+        
+        public void MenuItemLanguage_Click(object sender, EventArgs e)
+        {
+            var currMenuItem = (MenuItem)sender;
+
+            language = currMenuItem.Header.ToString();
+
+            // Passo fuori le lingue disponibili nel menu
+            foreach (MenuItem tmp in languageToolStripMenu.Items)
+            {
+                tmp.IsChecked = tmp == currMenuItem;
+            }
+
+            // Carico template selezionato
+            lang.loadLanguageTemplate(currMenuItem.Header.ToString());
+        }
+
         //------------------------------------------------------------------------
         //----------------Funzione chiamata alla chiusura del form----------------
         //------------------------------------------------------------------------
@@ -243,6 +300,14 @@ namespace ModBus_Server
 
         private void Form1_Load(object sender, RoutedEventArgs e)
         {
+            threadDequeue = new Thread(new ThreadStart(LogDequeue));
+            threadDequeue.IsBackground = true;
+            threadDequeue.Start();
+
+            richTextBoxPackets.Document.Blocks.Clear();
+            richTextBoxPackets.AppendText("\n");
+            richTextBoxPackets.Document.PageWidth = 5000;
+
             var version_ = Assembly.GetEntryAssembly().GetName().Version;
 
             this.Title = "ModBus Server " + version_.ToString().Split('.')[0] + "." + version_.ToString().Split('.')[1] + " " + version;
@@ -267,59 +332,6 @@ namespace ModBus_Server
             }
 
             carica_configurazione();
-
-
-
-
-            textBoxTcpClientIpAddress.ToolTip = "Inserire l'IP del server (0.0.0.0 o localhost)";
-            textBoxTcpClientPort.ToolTip =  "Inserire la porta in ascolto (default ModBus 502)";
-
-            String toolTipNumberFormat = "Formato indirizzo\nDEC: decimale\nHEX: esadecimale (inserire il valore senza 0x)";
-
-            comboBoxCoilsRegisters.ToolTip = toolTipNumberFormat;
-            comboBoxCoilsOffset.ToolTip = toolTipNumberFormat;
-            comboBoxInputsRegisters.ToolTip = toolTipNumberFormat;
-            comboBoxInputsOffset.ToolTip = toolTipNumberFormat;
-            comboBoxInputsRegRegisters.ToolTip = toolTipNumberFormat;
-            comboBoxInputsRegValues.ToolTip = toolTipNumberFormat;
-            comboBoxInputsRegOffset.ToolTip = toolTipNumberFormat;
-            comboBoxHoldingsRegisters.ToolTip = toolTipNumberFormat;
-            comboBoxHoldingsValues.ToolTip = toolTipNumberFormat;
-            comboBoxHoldingsOffset.ToolTip = toolTipNumberFormat;
-
-            textBoxCoilsOffset.ToolTip = "Valore di offset aggiunto al'indirizzo dei registri nella tabella";
-            textBoxInputsOffset.ToolTip = "Valore di offset aggiunto al'indirizzo dei registri nella tabella";
-            textBoxInputsRegOffset.ToolTip = "Valore di offset aggiunto al'indirizzo dei registri nella tabella";
-            textBoxHoldingsOffset.ToolTip = "Valore di offset aggiunto al'indirizzo dei registri nella tabella";
-
-            buttonExportSentPackets.ToolTip = "Esporta file.txt pacchetti inviati";
-            buttonExportReceivedPackets.ToolTip = "Esporta file.txt pacchetti ricevuti";
-
-            buttonClearSent.ToolTip = "Cancella tabella pacchetti inviati";
-            buttonClearReceived.ToolTip = "Cancella tabella pacchetti ricevuti";
-
-            richTextBoxOutgoingPackets.ToolTip = "Pacchetti inviati";
-            richTextBoxIncomingPackets.ToolTip = "Pacchetti ricevuti";
-
-            pictureBoxRunningAs.ToolTip = "Verde quando il server è attivo";
-            pictureBoxIsSending.ToolTip = "Giallo quando il server sta ricevendo pacchetti";
-            pictureBoxIsResponding.ToolTip = "Giallo quando il server sta inviando pacchetti";
-
-            textBoxModbusAddress.ToolTip = "Slave ID del server";
-
-            ButtonStart.ToolTip = "Cambia modalità in running (il server risponde aggiornando le tabelle dei registri in tempo reale)";
-            ButtonPause.ToolTip = "Cambia modalità in pausa, il server continua a rispondere ai comandi ModBus ma non aggiorna più la grafica permettendo all'utente di modificare il contenuto dei regsitri).";
-            ButtonStop.ToolTip = "Cambia modalità in stop (il server non risponde più ai comandi ModBus (utile per simulare un guasto o interrompere brevemente le risposte verso un master).";
-
-            checkBoxFocusWriteRows.ToolTip = "Scorre automaticamente le tabelle all'ultimo punto scritto (da un master)";
-            checkBoxFocusReadRows.ToolTip = "Scorre automaticamente le tabelle all'ultimo punto letto (da un master)";
-            checkBoxDisableGraphics.ToolTip = "Disattiva gli aspetti grafici (colori e refresh delle tabelle) per avere il minor tempo di risposta possibile";
-
-            checkBoxPinWIndow.ToolTip = "Blocca la finestra corrente mantenendola sempre in primo piano";
-
-            buttonPingIp.ToolTip = "Esegue un ping all'indirizzo IP inserito";
-
-
         }
 
         private void radioButtonModeSerial_CheckedChanged(object sender, RoutedEventArgs e)
@@ -1075,16 +1087,10 @@ namespace ModBus_Server
             info.Show();
         }
 
-        private void buttonClearSent_Click(object sender, RoutedEventArgs e)
-        {
-            richTextBoxOutgoingPackets.Document.Blocks.Clear();
-            richTextBoxOutgoingPackets.AppendText("\n");
-        }
-
         private void buttonClearReceived_Click(object sender, RoutedEventArgs e)
         {
-            richTextBoxIncomingPackets.Document.Blocks.Clear();
-            richTextBoxIncomingPackets.AppendText("\n");
+            richTextBoxPackets.Document.Blocks.Clear();
+            richTextBoxPackets.AppendText("\n");
         }
 
         private void richTextBoxAppend(RichTextBox richTextBox, String append)
@@ -1095,6 +1101,8 @@ namespace ModBus_Server
 
         private void buttonClearSerialStatus_Click(object sender, RoutedEventArgs e)
         {
+            count_status = 0;
+
             richTextBoxStatus.Document.Blocks.Clear();
             richTextBoxStatus.AppendText("\n");
         }
@@ -1129,7 +1137,7 @@ namespace ModBus_Server
             tabControlMain.SelectedIndex = 7;
         }
 
-        // Salvataggio pacchetti inviati
+        // Salvataggio pacchetti
         private void buttonExportSentPackets_Click(object sender, RoutedEventArgs e)
         {
             saveFileDialogBox = new SaveFileDialog();
@@ -1146,9 +1154,9 @@ namespace ModBus_Server
 
                 TextRange textRange = new TextRange(
                     // TextPointer to the start of content in the RichTextBox.
-                    richTextBoxOutgoingPackets.Document.ContentStart,
+                    richTextBoxPackets.Document.ContentStart,
                     // TextPointer to the end of content in the RichTextBox.
-                    richTextBoxOutgoingPackets.Document.ContentEnd
+                    richTextBoxPackets.Document.ContentEnd
                 );
 
                 writer.Write(textRange.Text);
@@ -1157,48 +1165,24 @@ namespace ModBus_Server
             }
         }
 
-        // Salvataggio pacchetti ricevuti
-        private void buttonExportReceivedPackets_Click(object sender, RoutedEventArgs e)
+        private void coilsTableImportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            saveFileDialogBox = new SaveFileDialog();
+            importDataGrid(list_coilsTable, "", "Carica tabella coils", comboBoxCoilsOffset, textBoxCoilsOffset, comboBoxCoilsRegisters);
+        }
 
-            saveFileDialogBox.DefaultExt = ".txt";
-            saveFileDialogBox.AddExtension = false;
-            saveFileDialogBox.FileName = "Pacchetti_ricevuti_" + DateTime.Now.Day.ToString().PadLeft(2, '0') + "." + DateTime.Now.Month.ToString().PadLeft(2, '0') + "." + DateTime.Now.Year.ToString().PadLeft(2, '0');
-            saveFileDialogBox.Filter = "Text|*.txt|Log|*.log";
-            saveFileDialogBox.Title = "Salva Log pacchetti inviati";
+        private void coilsExportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            string offset = textBoxCoilsOffset.Text;
 
-            if ((bool)saveFileDialogBox.ShowDialog())
+            if (comboBoxCoilsOffset.SelectedIndex == 1)
             {
-                StreamWriter writer = new StreamWriter(saveFileDialogBox.OpenFile());
-
-                TextRange textRange = new TextRange(
-                    // TextPointer to the start of content in the RichTextBox.
-                    richTextBoxIncomingPackets.Document.ContentStart,
-                    // TextPointer to the end of content in the RichTextBox.
-                    richTextBoxIncomingPackets.Document.ContentEnd
-                );
-
-
-                writer.Write(textRange.Text);
-                writer.Dispose();
-                writer.Close();
+                offset = "0x" + offset;
             }
+
+            exportDataGrid(list_coilsTable, "Coils_", "Salva tabella coils", offset, comboBoxCoilsOffset.SelectedIndex == 1);
         }
 
-
-
-        private void holdingSuiteToolStripMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            importDataGrid(list_coilsTable, "", "Carica tabella coils");
-        }
-
-        private void coilsTableToolStripMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            exportDataGrid(list_coilsTable, "Coils_", "Salva tabella coils");
-        }
-
-        public void exportDataGrid(ObservableCollection<ModBus_Item> dataGrid, String fileName, String title)
+        public void exportDataGrid(ObservableCollection<ModBus_Item> collection, String fileName, String title, String offset, bool registerHex)
         {
             try
             {
@@ -1207,27 +1191,38 @@ namespace ModBus_Server
                 saveFileDialogBox.DefaultExt = "csv";
                 saveFileDialogBox.AddExtension = false;
                 saveFileDialogBox.FileName = "" + fileName;
-                saveFileDialogBox.Filter = "CSV|*.csv|JSON|*.json";
+                //saveFileDialogBox.Filter = "CSV|*.csv|JSON|*.json";
+                saveFileDialogBox.Filter = "CSV|*.csv";
                 saveFileDialogBox.Title = title;
 
                 if ((bool)saveFileDialogBox.ShowDialog())
                 {
-                    if (saveFileDialogBox.FileName.IndexOf("csv") != 1)
+                    String content = "Offset,Register,Value,Notes,Mappings\n";
+
+                    foreach (ModBus_Item item in collection)
                     {
-                        String file_content = "";
-
-                        for (int i = 0; i < (dataGrid.Count); i++)
+                        if (item != null)
                         {
-                            file_content += dataGrid[i].Register + ", " +
-                                            dataGrid[i].Value + ", " +
-                                            dataGrid[i].Notes + "\n";
+                            if (registerHex)
+                            {
+                                content += offset + ",0x" + item.Register + "," + item.Value + "," + item.Notes + "," + "\n";
+                            }
+                            else
+                            {
+                                content += offset + "," + item.Register + "," + item.Value + "," + item.Notes + "," + "\n";
+                            }
                         }
+                    }
 
-                        StreamWriter writer = new StreamWriter(saveFileDialogBox.OpenFile());
+                    StreamWriter writer = new StreamWriter(saveFileDialogBox.OpenFile());
 
-                        writer.Write(file_content);
-                        writer.Dispose();
-                        writer.Close();
+                    writer.Write(content);
+                    writer.Dispose();
+                    writer.Close();
+
+                    /*if (saveFileDialogBox.FileName.IndexOf("csv") != 1)
+                    {
+                        
                     }
                     else
                     {
@@ -1261,7 +1256,7 @@ namespace ModBus_Server
                         writer.Write(file_content);
                         writer.Dispose();
                         writer.Close();
-                    }
+                    }*/
                 }
             }
             catch (Exception error)
@@ -1270,7 +1265,7 @@ namespace ModBus_Server
             }
         }
 
-        public void importDataGrid(ObservableCollection<ModBus_Item> dataGrid, String fileName, String title)
+        public void importDataGrid(ObservableCollection<ModBus_Item> collection, String fileName, String title, ComboBox comboBoxOffset, TextBox textBoxOffset, ComboBox comboBoxReg)
         {
             try
             {
@@ -1287,7 +1282,60 @@ namespace ModBus_Server
                     //DEBUG
                     Console.WriteLine(openFileDialogBox.FileName);
 
-                    if (openFileDialogBox.FileName.IndexOf(".csv") == -1)
+                    // File CSV
+
+                    collection.Clear();
+
+                    string content = File.ReadAllText(openFileDialogBox.FileName);
+                    string[] splitted = content.Split('\n');
+
+                    for (int i = 1; i < splitted.Count(); i++)
+                    {
+                        ModBus_Item item = new ModBus_Item();
+
+                        try
+                        {
+                            if (splitted[i].Length > 2)
+                            {
+                                string offset = splitted[i].Split(',')[0];
+
+                                if (offset.IndexOf("0x") != -1)
+                                {
+                                    comboBoxOffset.SelectedIndex = 1;
+                                    offset = offset.Substring(2);
+                                }
+
+                                textBoxOffset.Text = offset;
+
+                                item.Register = splitted[i].Split(',')[1];
+
+                                if (item.Register.IndexOf("0x") != -1)
+                                {
+                                    comboBoxReg.SelectedIndex = 1;
+                                    item.Register = item.Register.Substring(2);
+                                }
+
+                                item.Value = splitted[i].Split(',')[2];
+
+                                if (item.Value.IndexOf("0x") != -1)
+                                {
+                                    comboBoxReg.SelectedIndex = 1;
+                                    item.Value = item.Register.Substring(2);
+                                }
+
+                                item.Notes = splitted[i].Split(',')[3];
+                                //item.Mappings = splitted[i].Split(',')[4];
+
+                                collection.Add(item);
+                            }
+                        }
+                        catch
+                        {
+                            //Console.WriteLine(err);
+                        }
+                    }
+
+                    /*if (openFileDialogBox.FileName.IndexOf(".csv") == -1)
                     {
                         // File JSON
 
@@ -1320,35 +1368,8 @@ namespace ModBus_Server
 
                     else
                     {
-                        // File CSV
-
-                        string file_content = File.ReadAllText(openFileDialogBox.FileName);
-
-                        //DEBUG
-                        //Console.WriteLine(file_content);
-
-                        String[] CSV_row = file_content.Split('\n');
-
-                        dataGrid.Clear();
-
-                        for (int i = 0; i < (CSV_row.Length); i++)
-                        {
-                            try
-                            {
-                                ModBus_Item row = new ModBus_Item();
-
-                                row.Register   = CSV_row[i].Split(',')[0];
-                                row.Value = CSV_row[i].Split(',')[1];
-                                row.Notes = CSV_row[i].Split(',')[2];
-
-                                dataGrid.Add(row);
-                            }
-                            catch (Exception error)
-                            {
-                                Console.WriteLine(error);
-                            }
-                        }
-                    }
+                        
+                    }*/
                 }
 
             }
@@ -1358,34 +1379,55 @@ namespace ModBus_Server
             }
         }
 
-        private void inputTableToolStripMenuItem1_Click(object sender, RoutedEventArgs e)
+        private void inputExportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            exportDataGrid(list_inputsTable, "Inputs_", "Salva tabella inputs");
+            string offset = textBoxInputsOffset.Text;
+
+            if (comboBoxInputsOffset.SelectedIndex == 1)
+            {
+                offset = "0x" + offset;
+            }
+
+            exportDataGrid(list_inputsTable, "Inputs_", "Salva tabella inputs", offset, comboBoxInputsOffset.SelectedIndex == 1);
         }
 
-        private void inputRegisterTableToolStripMenuItem1_Click(object sender, RoutedEventArgs e)
+        private void inputRegisterExportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            exportDataGrid(list_inputRegistersTable, "Input_registers_", "Salva tabella input registers");
+            string offset = textBoxInputsRegOffset.Text;
+
+            if (comboBoxInputsRegOffset.SelectedIndex == 1)
+            {
+                offset = "0x" + offset;
+            }
+
+            exportDataGrid(list_inputRegistersTable, "Input_registers_", "Salva tabella input registers", offset, comboBoxInputsRegOffset.SelectedIndex == 1);
         }
 
-        private void holdingTableToolStripMenuItem1_Click(object sender, RoutedEventArgs e)
+        private void holdingExportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            exportDataGrid(list_holdingRegistersTable, "Holdings_", "Salva tabella holdings");
+            string offset = textBoxHoldingsOffset.Text;
+
+            if (comboBoxHoldingsOffset.SelectedIndex == 1)
+            {
+                offset = "0x" + offset;
+            }
+
+            exportDataGrid(list_holdingRegistersTable, "Holdings_", "Salva tabella holdings", offset, comboBoxHoldingsOffset.SelectedIndex == 1);
         }
 
-        private void inputTableToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        private void inputImportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            importDataGrid(list_inputsTable, "", "Carica tabella inputs");
+            importDataGrid(list_inputsTable, "", "Carica tabella inputs", comboBoxInputsOffset, textBoxInputsOffset, comboBoxInputsRegisters);
         }
 
-        private void inputRegisterTableToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        private void inputRegisterImportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            importDataGrid(list_inputRegistersTable, "", "Carica tabella input registers");
+            importDataGrid(list_inputRegistersTable, "", "Carica tabella input registers", comboBoxInputsRegOffset, textBoxInputsRegOffset, comboBoxInputsRegRegisters);
         }
 
-        private void holdingTableToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        private void holdingImportToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            importDataGrid(list_holdingRegistersTable, "", "Carica tabella holdings");
+            importDataGrid(list_holdingRegistersTable, "", "Carica tabella holdings", comboBoxHoldingsOffset, textBoxHoldingsOffset, comboBoxHoldingsRegisters);
         }
 
         private void buttonColorCellRead_Click_1(object sender, RoutedEventArgs e)
@@ -1476,16 +1518,14 @@ namespace ModBus_Server
 
         private void buttonClearAll_Click(object sender, RoutedEventArgs e)
         {
-            richTextBoxIncomingPackets.Document.Blocks.Clear();
-            richTextBoxIncomingPackets.AppendText("\n");
+            count_log = 0;
 
-            richTextBoxOutgoingPackets.Document.Blocks.Clear();
-            richTextBoxOutgoingPackets.AppendText("\n");
+            richTextBoxPackets.Document.Blocks.Clear();
+            richTextBoxPackets.AppendText("\n");
         }
 
         private void checkBoxAddLinesToEnd_CheckedChanged(object sender, RoutedEventArgs e)
         {
-            
             //ModBus.insertLogLinesAtTop(!(bool)checkBoxAddLinesToEnd.IsChecked);
         }
 
@@ -1525,7 +1565,7 @@ namespace ModBus_Server
 
         private void caricaConfigurazioneDalDatabaseToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            Carica_impianto form_load = new Carica_impianto(defaultPathToConfiguration);
+            Carica_impianto form_load = new Carica_impianto(defaultPathToConfiguration, this);
             form_load.ShowDialog();
 
             //Controllo il risultato del form
@@ -1720,6 +1760,13 @@ namespace ModBus_Server
             {
                 ModBus.disableGraphics = (bool)checkBoxDisableGraphics.IsChecked;
             }
+
+            checkBoxFocusReadRows.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
+            checkBoxFocusWriteRows.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
+            dataGridViewCoils.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
+            dataGridViewInput.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
+            dataGridViewInputRegister.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
+            dataGridViewHolding.IsEnabled = !(bool)checkBoxDisableGraphics.IsChecked;
         }
 
         private void textBoxOffsetFocusTabelle_TextChanged(object sender, TextChangedEventArgs e)
@@ -1746,7 +1793,12 @@ namespace ModBus_Server
                 {
                     ModBus.mode = 1;
                     updateStartPauseStop();
-                    MessageBox.Show("Il programma è passato in modalità edit, continua a rispondere ai comandi ModBus ma non aggiorna più la grafica delle tabelle. Premere start per riavviare la grafica al termine delle modifiche.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    if (!ShowAlertEditMode)
+                    {
+                        MessageBox.Show("Il programma è passato in modalità edit, continua a rispondere ai comandi ModBus con i valori nelle tabelle ma non aggiorna più i colori e non salta più alle righe lette/scritte dal master. Premere start per riavviare la grafica al termine delle modifiche.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                        ShowAlertEditMode = true;
+                    }
                 }
             }
         }
@@ -1787,6 +1839,235 @@ namespace ModBus_Server
                     updateStartPauseStop();
                     MessageBox.Show("Il rogramma è passato in modalità edit, contiunua a rispondere al ModBus ma non aggiorna più la grafica delle tabelle. Premere start per riavviare la grafica al termine delle modifiche.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
+            }
+        }
+
+        public void LogDequeue()
+        {
+            while (!dequeueExit)
+            {
+                String content;
+
+                if (this.ModBus != null)
+                {
+                    if (this.ModBus.log2.TryDequeue(out content))
+                    {
+                        richTextBoxPackets.Dispatcher.Invoke((Action)delegate
+                        {
+                            if(count_log > LogLimitRichTextBox)
+                            {
+                                // Arrivato al limite tolgo una riga ogni volta che aggiungo una riga
+                                richTextBoxPackets.Document.Blocks.Remove(richTextBoxPackets.Document.Blocks.FirstBlock);
+                            }
+                            else
+                            {
+                                count_log += 1;
+                            }
+
+                            richTextBoxPackets.AppendText(content);
+                        });
+
+                        scrolled_log = false;
+                    }
+                    else
+                    {
+                        if (!scrolled_log)
+                        {
+                            richTextBoxPackets.Dispatcher.Invoke((Action)delegate
+                            {
+                                richTextBoxPackets.ScrollToEnd();
+                            });
+
+                            scrolled_log = true;
+                        }
+
+                        Thread.Sleep(100);
+                    }
+
+                    if (this.ModBus.logStatus.TryDequeue(out content))
+                    {
+                        richTextBoxStatus.Dispatcher.Invoke((Action)delegate
+                        {
+                            if (count_status > LogLimitRichTextBox)
+                            {
+                                // Arrivato al limite tolgo una riga ogni volta che aggiungo una riga
+                                richTextBoxStatus.Document.Blocks.Remove(richTextBoxStatus.Document.Blocks.FirstBlock);
+                            }
+                            else
+                            {
+                                count_status += 1;
+                            }
+
+                            richTextBoxStatus.AppendText(content);
+
+                            scrolled_status = false;
+                        });
+                    }
+                    else
+                    {
+                        if (!scrolled_status)
+                        {
+                            richTextBoxStatus.Dispatcher.Invoke((Action)delegate
+                            {
+                                richTextBoxStatus.ScrollToEnd();
+                            });
+
+                            scrolled_status = true;
+                        }
+
+                        Thread.Sleep(100);
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(100);
+                }
+            }
+        }
+
+        private void Window_KeyUp(object sender, KeyEventArgs e)
+        {
+
+            // Vincolato al ctrl
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                switch (e.Key)
+                {
+                    case Key.D1:
+                        tabControlMain.SelectedIndex = 0;
+                        break;
+
+                    case Key.D2:
+                        tabControlMain.SelectedIndex = 1;
+                        break;
+
+                    case Key.D3:
+                        tabControlMain.SelectedIndex = 2;
+                        break;
+
+                    case Key.D4:
+                        tabControlMain.SelectedIndex = 3;
+                        break;
+
+                    case Key.D5:
+                        tabControlMain.SelectedIndex = 4;
+                        break;
+
+                    case Key.D6:
+                        tabControlMain.SelectedIndex = 5;
+                        break;
+
+                    case Key.D7:
+                        tabControlMain.SelectedIndex = 6;
+                        break;
+
+                    case Key.D8:
+                        tabControlMain.SelectedIndex = 7;
+                        break;
+
+                    // Carica profilo
+                    case Key.O:
+                        caricaConfigurazioneDalDatabaseToolStripMenuItem_Click(sender, e);
+                        break;
+
+                    // Apri log
+                    case Key.L:
+                        logToolStripMenu_Click(sender, e);
+                        break;
+
+                    // DB Manager
+                    case Key.D:
+                        gestisciDatabaseToolStripMenuItem_Click(sender, e);
+                        break;
+
+                    // Info
+                    case Key.I:
+                        infoToolStripMenuItem1_Click(sender, e);
+                        break;
+
+                    // Salva
+                    case Key.S:
+
+                        // Salva su database
+                        if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+                        {
+                            salvaConfigurazioneNelDatabaseToolStripMenuItem_Click(sender, e);
+                        }
+                        // Salva config. corrente
+                        else
+                        {
+                            salvaToolStripMenuItem_Click(sender, e);
+                        }
+
+                        break;
+
+                    // Mode
+                    case Key.M:
+                        if ((bool)radioButtonModeSerial.IsChecked)
+                        {
+                            radioButtonModeTcp.IsChecked = true;
+                        }
+                        else
+                        {
+                            radioButtonModeSerial.IsChecked = true;
+                        }
+                        break;
+
+                    // Mode
+                    case Key.N:
+                    case Key.B:
+                        if ((bool)radioButtonModeSerial.IsChecked)
+                        {
+                            buttonSerialActive_Click(sender, e);
+                        }
+                        else
+                        {
+                            buttonTcpActive_Click(sender, e);
+                        }
+                        break;
+
+                    // Chiudi finestra
+                    case Key.W:
+                    case Key.Q:
+                        this.Close();
+                        break;
+
+                }
+            }
+
+            // Non vincolato al ctrl
+            switch (e.Key)
+            {
+                // Cancella tabella
+                case Key.Delete:
+
+                    // Home
+                    if (tabControlMain.SelectedIndex == 0)
+                    {
+                        buttonClearSerialStatus_Click(sender, e);
+                    }
+
+                    // Log
+                    if (tabControlMain.SelectedIndex == 5)
+                    {
+                        buttonClearAll_Click(sender, e);
+                    }
+
+                    break;
+            }
+        }
+
+        private void logToolStripMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (!logWindowIsOpen)
+            {
+                logWindowIsOpen = true;
+                LogView window = new LogView(this);
+                window.Show();
+            }
+            else
+            {
+                MessageBox.Show(lang.languageTemplate["strings"]["logIsAlreadyOpen"], "Info", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

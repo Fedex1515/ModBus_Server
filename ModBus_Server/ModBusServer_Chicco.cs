@@ -12,6 +12,7 @@ using System.IO.Ports;
 using System.Threading;
 using System.Windows.Media;
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
 
 using ModBus_Server;
 
@@ -19,11 +20,6 @@ namespace ModBusMaster_Chicco
 {
     public class ModBus_Chicco
     {
-        //-----VARIABILI-OGGETTO------
-        bool ClientActive = false;
-
-        bool ordineTextBoxLog = true;   // true -> in cima, false -> in fondo
-
         //RTU o ASCII
         SerialPort serialPort;
 
@@ -40,9 +36,6 @@ namespace ModBusMaster_Chicco
         Border pictureBoxSending = new Border();
         Border pictureBoxReceiving = new Border();
 
-        RichTextBox richTextBoxSent = new RichTextBox();
-        RichTextBox richTextBoxReceived = new RichTextBox();
-        RichTextBox richTextBoxStatus = new RichTextBox();
         TcpListener server; // L'oggetto server per Modbus TCP deve essere globale
 
         ComboBox[] comboBoxRegisters = new ComboBox[4];
@@ -77,6 +70,10 @@ namespace ModBusMaster_Chicco
 
         public int offsetFocusTabelle = 5;
 
+        public FixedSizedQueue<String> log = new FixedSizedQueue<string>();
+        public FixedSizedQueue<String> log2 = new FixedSizedQueue<string>();
+        public FixedSizedQueue<String> logStatus = new FixedSizedQueue<string>();
+
         //------------------------------------------------------------------------------------------
         //-----------------------------Definizione funnzione ModBus 1-------------------------------
         //------------------------------------------------------------------------------------------
@@ -87,11 +84,10 @@ namespace ModBusMaster_Chicco
         //-----------------------------Definizione funnzione ModBus 2-------------------------------
         //------------------------------------------------------------------------------------------
 
-        public ModBus_Chicco(MainWindow main_,String type_)
+        public ModBus_Chicco(MainWindow main_, String type_)
         {
             main = main_;
 
-            ClientActive = true;
             // Type: TCP, RTU, ASCII
             type = type_;
 
@@ -111,9 +107,10 @@ namespace ModBusMaster_Chicco
             pictureBoxSending = main.pictureBoxIsResponding;
             pictureBoxReceiving = main.pictureBoxIsSending;
 
-            richTextBoxSent = main.richTextBoxOutgoingPackets;
-            richTextBoxReceived = main.richTextBoxIncomingPackets;
-            richTextBoxStatus = main.richTextBoxStatus;
+            // Dimensione log locale
+            log.Limit = 10000;
+            log2.Limit = 10000;
+            logStatus.Limit = 10000;
 
             // Tabelle registri letti via ModBus
             list = new ObservableCollection<ModBus_Item>[] { main.list_coilsTable, main.list_inputsTable, main.list_holdingRegistersTable, main.list_inputRegistersTable }; ;
@@ -131,11 +128,13 @@ namespace ModBusMaster_Chicco
             scrollToWriteRows = (bool)main.checkBoxFocusWriteRows.IsChecked;
 
 
-            if (!int.TryParse(main.textBoxOffsetFocusTabelle.Text, out offsetFocusTabelle)){
+            if (!int.TryParse(main.textBoxOffsetFocusTabelle.Text, out offsetFocusTabelle))
+            {
                 offsetFocusTabelle = 5;
             }
 
-            comboBoxRegisters[0].Dispatcher.Invoke((Action)delegate {
+            comboBoxRegisters[0].Dispatcher.Invoke((Action)delegate
+            {
                 for (int i = 0; i < 4; i++)
                 {
                     comboBoxRegisters_str[i] = comboBoxRegisters[i].SelectedItem.ToString().Split(' ')[1];
@@ -223,36 +222,29 @@ namespace ModBusMaster_Chicco
 
             Console.WriteLine("loopTcpListener:\tLoop arrested");
         }
-        
+
         private void handleClient(object token)
         {
             Byte[] bytes = new Byte[1024];
             StringBuilder builder = new StringBuilder();
-            
+
             using (var client = token as TcpClient)
             {
                 using (var stream = client.GetStream())
                 {
-                    Console.WriteLine("{0,20}{1}","\nhandleClient:","Connected!");
+                    Console.WriteLine("{0,20}{1}", "\nhandleClient:", "Connected!");
 
                     int currentTable = 0;   // 0 -> Coils, 1 -> Inputs, 2 -> Holding reg.,  4 -> Input reg.
                     int currentRow = 0;     // Riga tabella
-                    
+
                     Byte[] received = new Byte[256];
                     int i;
 
                     i = stream.Read(received, 0, received.Length);
 
-                    if (!disableGraphics)
+                    if (received[7] > 0)
                     {
-                        if (received[7] > 0)
-                        {
-                            richTextBoxStatus.Dispatcher.Invoke((Action)delegate
-                            {
-                                richTextBoxStatus.AppendText(DateTime.Now.ToString().Split(' ')[1] + " - " + "Incoming connection from " + IPAddress.Parse(((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString()) + " - FC" + received[7].ToString().PadLeft(2, '0') + "\n");
-                                richTextBoxStatus.ScrollToEnd();
-                            });
-                        }
+                        logStatus.Enqueue(DateTime.Now.ToString().Split(' ')[1] + " - " + "Incoming connection from " + IPAddress.Parse(((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString()) + " - FC" + received[7].ToString().PadLeft(2, '0') + "\n");
                     }
 
                     receiving(received, i);
@@ -280,7 +272,7 @@ namespace ModBusMaster_Chicco
                         sending();
 
                         byte[] response;
-                        
+
 
                         //Analizzo il pacchetto ricevuto
                         try
@@ -295,7 +287,7 @@ namespace ModBusMaster_Chicco
                             response = new byte[1];
                         }
 
-                        Console.Write("{0,20}{1}", "\nhandleClient:","Sent: ");
+                        Console.Write("{0,20}{1}", "\nhandleClient:", "Sent: ");
 
                         for (int a = 0; a < response.Length; a++)
                         {
@@ -324,7 +316,7 @@ namespace ModBusMaster_Chicco
                     // DoEvents();
                 }
             }
-            Console.WriteLine("{0,20}{1}", "\nhandleClient:","Releasing thread handler client");
+            Console.WriteLine("{0,20}{1}", "\nhandleClient:", "Releasing thread handler client");
         }
 
 
@@ -403,10 +395,8 @@ namespace ModBusMaster_Chicco
                             Console.WriteLine("CRC pacchetto: " + received[Length - 1].ToString() + " " + received[Length - 2].ToString());
                             Console.WriteLine("CRC calcolato: " + CRC_received[1].ToString() + " " + CRC_received[0].ToString());
 
-                            richTextBoxReceived.Dispatcher.Invoke((Action)delegate
-                            {
-                                richTextBoxReceived.AppendText("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]");
-                            });
+                            log.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]");
+                            log2.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]");
 
                             //NB: Non usare return altrimenti fermo il thread di ricezione
                             //return; // Se CRC invalido non rispondo al messaggio e fermo il codice qui
@@ -872,7 +862,7 @@ namespace ModBusMaster_Chicco
                         ModBus_Item row = new ModBus_Item();
 
 
-                        row.Register = (startAddress - uint_parser(textBoxOffset_str[0], comboBoxOffset_str[0])).ToString() ;
+                        row.Register = (startAddress - uint_parser(textBoxOffset_str[0], comboBoxOffset_str[0])).ToString();
 
                         comboBoxOffset[0].Dispatcher.Invoke((Action)delegate
                         {
@@ -887,7 +877,8 @@ namespace ModBusMaster_Chicco
 
                             row.Color = colorDefaultCell[0].ToString();
 
-                            lock (list) { 
+                            lock (list)
+                            {
                                 list[0].Add(row);
                             }
 
@@ -1291,19 +1282,6 @@ namespace ModBusMaster_Chicco
             return new byte[4];
         }
 
-        //------------------------------------------------------------------------------------------
-        //--------------------Funzione controllo risposta ricevuta su seriale-----------------------
-        //------------------------------------------------------------------------------------------
-
-        //Controllo che il pacchetto di riposta non contenga errori o un crc non valido prima di
-        //prenderla per buona (DA FARE)
-
-        private bool check_response(String mode, byte[] response, int Lenght)
-        {
-            //Mode: "RTU", "ASCII", "TCP"
-            return true;
-        }
-
         //-----------------------------------------------------------------
         //--------------------Calcolo CRC 16 MODBUS------------------------
         //-----------------------------------------------------------------
@@ -1386,49 +1364,6 @@ namespace ModBusMaster_Chicco
         //-------------------------------------------------------------------------------------
         //----------------Funzioni stampa su console o textBox array di byte-------------------
         //------------------------------------------------------------------------------------
-        private void RichTextBox_printByte(RichTextBox textBox, byte[] query, int Length)
-        {
-            if (Length > 0)
-            {
-                String message = "\t------" + timestamp() + "------\n";
-                String aa = "";
-
-                for (int i = 0; i < Length; i++)
-                {
-
-                    aa = query[i].ToString("X");
-
-                    if (aa.Length < 2)
-                        aa = "0" + aa;
-
-                    message += aa + " ";
-                }
-
-                message += "\n";
-
-                // Ordine inserimento righe log pacchett (inserimento in fondo o in cima)
-
-                /*if (ordineTextBoxLog)
-                {
-                    if (textBox.Text.ToString().Length > 1)
-                        textBox.Con = message + "\n" + textBox.Text;
-                    else
-                        textBox.Text = message;
-                }
-                else
-                {
-                    if (textBox.Text.ToString().Length > 1)
-                        textBox.Text = textBox.Text + "\n" + message;
-                    else
-                        textBox.Text = message;
-
-                }*/
-
-                textBox.AppendText(message);
-                textBox.ScrollToEnd();
-            }
-        }
-
         private void Console_printByte(String intestazione, byte[] query, int Length)
         {
             if (Length > 0)
@@ -1450,7 +1385,7 @@ namespace ModBusMaster_Chicco
             }
         }
 
-        private void Console_printUint(String intestazione, uint[] query, int Length)
+        public string Console_print(string header, byte[] query, int Length)
         {
             if (Length > 0)
             {
@@ -1459,34 +1394,23 @@ namespace ModBusMaster_Chicco
 
                 for (int i = 0; i < Length; i++)
                 {
+
                     aa = query[i].ToString("X");
 
                     if (aa.Length < 2)
                         aa = "0" + aa;
 
-                    message += "0x" + aa + " ";
-                }
-                Console.WriteLine(intestazione + message);
-            }
-        }
-
-        private void Console_printBool(String intestazione, bool[] query, int Length)
-        {
-            if (Length > 0)
-            {
-                String message = "";
-                String aa = "";
-
-                for (int i = 0; i < Length; i++)
-                {
-                    if (query[i] == true)
-                        aa = "1";
-                    else
-                        aa = "0";
-
                     message += "" + aa + " ";
                 }
-                Console.WriteLine(intestazione + message);
+
+                log.Enqueue(timestamp() + header + message + "\n");
+                log2.Enqueue(timestamp() + header + message + "\n");
+
+                return timestamp() + header + message + "\n";
+            }
+            else
+            {
+                return "";
             }
         }
 
@@ -1499,12 +1423,13 @@ namespace ModBusMaster_Chicco
             {
                 pictureBoxSending.Dispatcher.Invoke((Action)delegate
                 {
-                //------------pictureBox gialla-------------
-                pictureBoxSending.Background = Brushes.Yellow;
+                    //------------pictureBox gialla-------------
+                    pictureBoxSending.Background = Brushes.Yellow;
                 });
             }
 
-            if (type != "TCP"){
+            if (type != "TCP")
+            {
                 Thread.Sleep(50);
             }
             //------------------------------------------            
@@ -1512,14 +1437,16 @@ namespace ModBusMaster_Chicco
 
         public void stopSending(byte[] query)
         {
-            if (!disableGraphics) {
+            if (!disableGraphics)
+            {
                 pictureBoxSending.Dispatcher.Invoke((Action)delegate
                 {
-                //------------pictureBox grigia-------------
-                pictureBoxSending.Background = Brushes.LightGray;
-                    RichTextBox_printByte(richTextBoxSent, query, query.Length);
+                    //------------pictureBox grigia-------------
+                    pictureBoxSending.Background = Brushes.LightGray;
                 });
             }
+                
+            Console_print(" Tx -> ", query, query.Length);
 
             if (type != "TCP")
             {
@@ -1530,14 +1457,16 @@ namespace ModBusMaster_Chicco
 
         public void receiving(byte[] response, int Length)
         {
-            if(!disableGraphics){
+            if (!disableGraphics)
+            {
                 pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
                 {
-                //------------pictureBox gialla-------------
-                pictureBoxReceiving.Background = Brushes.Yellow;
-                    RichTextBox_printByte(richTextBoxReceived, response, Length);
+                    //------------pictureBox gialla-------------
+                    pictureBoxReceiving.Background = Brushes.Yellow;
                 });
             }
+
+            Console_print(" Rx <- ", response, Length);
 
             if (type != "TCP")
             {
@@ -1552,8 +1481,8 @@ namespace ModBusMaster_Chicco
             {
                 pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
                 {
-                //------------pictureBox grigia-------------
-                pictureBoxReceiving.Background = Brushes.LightGray;
+                    //------------pictureBox grigia-------------
+                    pictureBoxReceiving.Background = Brushes.LightGray;
                 });
             }
 
@@ -1596,6 +1525,36 @@ namespace ModBusMaster_Chicco
                     Console.WriteLine("CurrentTable: " + currentTable.ToString());
                     Console.WriteLine("CurrentRow: " + currentRow.ToString());
                 }
+            }
+        }
+    }
+
+    public class FixedSizedQueue<T>
+    {
+        ConcurrentQueue<T> q = new ConcurrentQueue<T>();
+        private object lockObject = new object();
+
+        public int Limit { get; set; }
+        public void Enqueue(T obj)
+        {
+            q.Enqueue(obj);
+
+            lock (lockObject)
+            {
+                T overflow;
+                while (q.Count > Limit && q.TryDequeue(out overflow)) ;
+            }
+        }
+
+        public bool TryDequeue(out T obj)
+        {
+            if (q.TryDequeue(out obj))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
     }

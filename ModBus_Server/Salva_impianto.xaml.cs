@@ -13,6 +13,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Microsoft.Win32;
 
+// Libreria lingue
+using LanguageLib; // Libreria custom per caricare etichette in lingue differenti
+
 namespace ModBus_Server
 {
     /// <summary>
