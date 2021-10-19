@@ -2003,13 +2003,16 @@ namespace ModBus_Server
 
                     // Mode
                     case Key.M:
-                        if ((bool)radioButtonModeSerial.IsChecked)
+                        if ((bool)radioButtonModeTcp.IsEnabled && (bool)radioButtonModeSerial.IsEnabled)
                         {
-                            radioButtonModeTcp.IsChecked = true;
-                        }
-                        else
-                        {
-                            radioButtonModeSerial.IsChecked = true;
+                            if ((bool)radioButtonModeSerial.IsChecked)
+                            {
+                                radioButtonModeTcp.IsChecked = true;
+                            }
+                            else
+                            {
+                                radioButtonModeSerial.IsChecked = true;
+                            }
                         }
                         break;
 

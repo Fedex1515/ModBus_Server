@@ -1046,6 +1046,7 @@ namespace ModBusMaster_Chicco
 
                     response[8] = received[8];
                     response[9] = received[9];
+
                     response[10] = received[10];
                     response[11] = received[11];    // La risposta è una echo della query
 
@@ -1077,13 +1078,13 @@ namespace ModBusMaster_Chicco
                             // Controllo se è presente il registro attuale nella tabella
                             if ((uint_parser(list[0][i].Register, comboBoxRegisters_str[0]) + uint_parser(textBoxOffset_str[0], comboBoxOffset_str[0])) == ((UInt16)(startAddress) + a))
                             {
-                                Console.WriteLine("Trovata corrispondenza: " + (startAddress).ToString());
+                                Console.WriteLine("Trovata corrispondenza: " + (startAddress + i).ToString());
 
                                 dataGrid[0].Dispatcher.Invoke((Action)delegate
                                 {
                                     lock (list)
                                     {
-                                        if ((received[13 + a / 8] & 1 << ((a / 8) * 8 + a % 8)) > 0)
+                                        if ((received[13 + a / 8] & (1 << (a % 8))) > 0)
                                         {
                                             list[0][i].Value = "1";
                                             list[0][i].Color = colorDefaultCell[0].ToString();
@@ -1113,22 +1114,23 @@ namespace ModBusMaster_Chicco
                             ModBus_Item row = new ModBus_Item();
 
                             row.Register = (startAddress - uint_parser(textBoxOffset_str[0], comboBoxOffset_str[0]) + a).ToString();
-
-                            if ((received[13 + a / 8] & 1 << ((a / 8) * 8 + a % 8)) > 0)
-                            {
-                                row.Value = "1";
-                                row.Color = colorDefaultCell[0].ToString();
-                            }
-                            else
-                            {
-                                row.Value = "0";
-                                row.Color = colorDefaultCell[0].ToString();
-                            }
-
+                            
                             dataGrid[0].Dispatcher.Invoke((Action)delegate
                             {
                                 lock (list)
                                 {
+                                    if ((received[13 + a / 8] & (1 << (a % 8))) > 0)
+                                    {
+                                        row.Value = "1";
+                                        row.Color = colorDefaultCell[0].ToString();
+                                    }
+                                    else
+                                    {
+                                        row.Value = "0";
+                                        row.Color = colorDefaultCell[0].ToString();
+                                    }
+
+                            
                                     list[0].Add(row);
                                 }
                             });
