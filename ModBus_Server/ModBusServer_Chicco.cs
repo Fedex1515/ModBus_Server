@@ -395,8 +395,8 @@ namespace ModBusMaster_Chicco
                             Console.WriteLine("CRC pacchetto: " + received[Length - 1].ToString() + " " + received[Length - 2].ToString());
                             Console.WriteLine("CRC calcolato: " + CRC_received[1].ToString() + " " + CRC_received[0].ToString());
 
-                            log.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]");
-                            log2.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]");
+                            log.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
+                            log2.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
 
                             //NB: Non usare return altrimenti fermo il thread di ricezione
                             //return; // Se CRC invalido non rispondo al messaggio e fermo il codice qui
