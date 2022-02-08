@@ -134,9 +134,19 @@ namespace ModBus_Server
         const int SW_HIDE = 0;
         const int SW_SHOW = 5;
 
+        // Disable Console Exit Button
+        [DllImport("user32.dll")]
+        static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+        [DllImport("user32.dll")]
+        static extern IntPtr DeleteMenu(IntPtr hMenu, uint uPosition, uint uFlags);
+
+        const uint SC_CLOSE = 0xF060;
+        const uint MF_BYCOMMAND = (uint)0x00000000L;
+
         public ModBus_Chicco ModBus;
 
         public SerialPort serialPort = new SerialPort();
+        public string stringSerialPort = "COMxx";
 
         //Threads per programmi in background
         Thread loopTcp;
@@ -233,6 +243,9 @@ namespace ModBus_Server
             checkBoxAddLinesToEnd.Visibility = Visibility.Hidden;
 
             updateStartPauseStop();
+
+            // Disabilita il pulsante di chiusura della console
+            disableConsoleExitButton();
         }
 
         
@@ -346,8 +359,6 @@ namespace ModBus_Server
             comboBoxSerialSpeed.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
             comboBoxSerialStop.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
 
-            richTextBoxStatus.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
-
             buttonUpdateSerialList.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
             buttonSerialActive.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
 
@@ -355,7 +366,6 @@ namespace ModBus_Server
             //Tcp OFF
             //radioButtonTcpSlave.IsEnabled = !radioButtonModeSerial.IsChecked;
 
-            richTextBoxStatus.IsEnabled = !(bool)radioButtonModeSerial.IsChecked;
             buttonTcpActive.IsEnabled = !(bool)radioButtonModeSerial.IsChecked;
 
             if ((bool)radioButtonModeSerial.IsChecked)
@@ -444,7 +454,7 @@ namespace ModBus_Server
                     serialPort.ReadTimeout = 50;
                     serialPort.WriteTimeout = 50;
 
-                    ModBus = new ModBus_Chicco(this, "RTU");
+                    ModBus = new ModBus_Chicco(this, "RTU", (bool)CheckBoxSwapCrcBytes.IsChecked);
 
                     //Svuoto il buffer
                     //serialPort.DiscardInBuffer();
@@ -455,6 +465,8 @@ namespace ModBus_Server
                     serialPort.DiscardOutBuffer();
 
                     richTextBoxAppend(richTextBoxStatus, "Connected to " + comboBoxSerialPort.SelectedItem.ToString());
+
+                    stringSerialPort = comboBoxSerialPort.SelectedItem.ToString();
 
                     loopSerial = new Thread(new ThreadStart(ModBus.loopSerialListenerRTU));
                     loopSerial.IsBackground = true;
@@ -483,6 +495,8 @@ namespace ModBus_Server
                     }
                     catch { }
 
+                    ModBus.threadTxRxIsRunning = false;
+
                     buttonSerialActive.Content = "Connect";
 
                     Console.WriteLine("Errore apertura porta seriale");
@@ -503,14 +517,15 @@ namespace ModBus_Server
                 pictureBoxSerial.Background = Brushes.LightGray;
                 pictureBoxRunningAs.Background = Brushes.LightGray;
 
+                loopSerial.Abort();
+
+                ModBus.threadTxRxIsRunning = false;
 
                 buttonSerialActive.Content = "Connect";
 
                 radioButtonModeSerial.IsEnabled = true;
                 radioButtonModeTcp.IsEnabled = true;
                 checkBoxCheckModbusAddress.IsEnabled = true;
-
-                loopSerial.Abort();
 
                 comboBoxSerialPort.IsEnabled = true;
                 comboBoxSerialSpeed.IsEnabled = true;
@@ -548,19 +563,37 @@ namespace ModBus_Server
         // Visualizza console programma da menu tendina
         private void apriConsoleToolStripMenuItem_Click(object sender, RoutedEventArgs e)
         {
+            apriConsole(); 
+        }
+
+        // Nasconde console programma da menu tendina
+        private void chiudiConsoleToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            chiudiConsole();
+        }
+
+        public void chiudiConsole()
+        {
+            var handle = GetConsoleWindow();
+            ShowWindow(handle, SW_HIDE);
+
+            statoConsole = false;
+        }
+
+        public void apriConsole()
+        {
             var handle = GetConsoleWindow();
             ShowWindow(handle, SW_SHOW);
 
             statoConsole = true;
         }
 
-        // Nasconde console programma da menu tendina
-        private void chiudiConsoleToolStripMenuItem_Click(object sender, RoutedEventArgs e)
+        // Disabilita il pulsante di chiusura della console
+        public void disableConsoleExitButton()
         {
-            var handle = GetConsoleWindow();
-            ShowWindow(handle, SW_HIDE);
-
-            statoConsole = false;
+            IntPtr handle = GetConsoleWindow();
+            IntPtr exitButton = GetSystemMenu(handle, false);
+            if (exitButton != null) DeleteMenu(exitButton, SC_CLOSE, MF_BYCOMMAND);
         }
 
         //----------------------------------------------------------------------------------
@@ -976,9 +1009,6 @@ namespace ModBus_Server
                     textBoxOffsetFocusTabelle.Text = config.textBoxOffsetFocusTabelle_;
                 }
 
-                //Scelgo quale richTextBox di status abilitare
-                richTextBoxStatus.IsEnabled = (bool)radioButtonModeSerial.IsChecked;
-
                 Console.WriteLine("Caricata configurazione precedente\n");
             }
             catch (Exception error)
@@ -1002,8 +1032,6 @@ namespace ModBus_Server
 
             try
             {
-
-
                 if (pictureBoxTcp.Background == Brushes.LightGray)
                 {
                     ip_address = textBoxTcpClientIpAddress.Text;
@@ -1013,7 +1041,7 @@ namespace ModBus_Server
                     pictureBoxTcp.Background = Brushes.Lime;
                     pictureBoxRunningAs.Background = Brushes.Lime;
 
-                    ModBus = new ModBus_Chicco(this, "TCP");
+                    ModBus = new ModBus_Chicco(this, "TCP", (bool)CheckBoxSwapCrcBytes.IsChecked);
 
                     richTextBoxAppend(richTextBoxStatus, "Server active at " + ip_address + ":" + port);
 
@@ -1072,11 +1100,11 @@ namespace ModBus_Server
         {
             try
             {
-                System.Diagnostics.Process.Start(Directory.GetCurrentDirectory() + "\\Manuali\\Guida_ModBus_Server.pdf");
+                System.Diagnostics.Process.Start(Directory.GetCurrentDirectory() + "\\Manuali\\Guida_ModBus_Server_" + textBoxCurrentLanguage.Text + ".pdf");
             }
             catch
             {
-                MessageBox.Show("Ancora da scrivere :-). Devi arrangiarti. Ciao", "Hey");
+                MessageBox.Show("Ancora da scrivere :-)", "Hey");
             }
         }
 
@@ -1708,7 +1736,7 @@ namespace ModBus_Server
                         IconPause.Brush = Brushes.LightGray;
                         IconStop.Brush = new SolidColorBrush(Color.FromArgb(0xFF, 0xF0, 0x00, 0x00));
 
-                        LabelCurrentMode.Content = "Paused (Edit mode)";
+                        LabelCurrentMode.Content = "Edit mode";
                         LabelCurrentMode.Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0x00, 0x53, 0x9C)); ;
 
                         richTextBoxStatus.AppendText(DateTime.Now.ToString().Split(' ')[1] + " - Edit mode\n");
@@ -2036,7 +2064,21 @@ namespace ModBus_Server
                         break;
 
                 }
+
+                if (e.Key == Key.C && (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+                {
+                    if (!statoConsole)
+                    {
+                        apriConsole();
+                    }
+                    else
+                    {
+                        chiudiConsole();
+                    }
+                }
             }
+
+
 
             // Non vincolato al ctrl
             switch (e.Key)
@@ -2072,6 +2114,11 @@ namespace ModBus_Server
             {
                 MessageBox.Show(lang.languageTemplate["strings"]["logIsAlreadyOpen"], "Info", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private void CheckBoxSwapCrcBytes_Checked(object sender, RoutedEventArgs e)
+        {
+            ModBus.swapCrcBytes = (bool)CheckBoxSwapCrcBytes.IsChecked;
         }
     }
 

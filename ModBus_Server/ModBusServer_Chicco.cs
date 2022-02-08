@@ -74,19 +74,24 @@ namespace ModBusMaster_Chicco
         public FixedSizedQueue<String> log2 = new FixedSizedQueue<string>();
         public FixedSizedQueue<String> logStatus = new FixedSizedQueue<string>();
 
+        bool TX_on = false;
+        bool TX_set = false;
+        bool RX_on = false;
+        bool RX_set = false;
+
+        public bool swapCrcBytes = false;
+
+        public bool threadTxRxIsRunning = false;
+        Thread threadTxRx;
+
         //------------------------------------------------------------------------------------------
-        //-----------------------------Definizione funnzione ModBus 1-------------------------------
+        //-----------------------------Definizione funnzione ModBus---------------------------------
         //------------------------------------------------------------------------------------------
 
-        // eliminata
-
-        //------------------------------------------------------------------------------------------
-        //-----------------------------Definizione funnzione ModBus 2-------------------------------
-        //------------------------------------------------------------------------------------------
-
-        public ModBus_Chicco(MainWindow main_, String type_)
+        public ModBus_Chicco(MainWindow main_, String type_, bool swapCrcBytes_)
         {
             main = main_;
+            swapCrcBytes = swapCrcBytes_;
 
             // Type: TCP, RTU, ASCII
             type = type_;
@@ -158,7 +163,13 @@ namespace ModBusMaster_Chicco
 
         public void stopTcpLoop()
         {
-            server.Stop();
+            try
+            {
+                server.Stop();
+            }
+            catch { }
+
+            threadTxRxIsRunning = false;
         }
 
         //--------------------------------------------------------------------------------------------
@@ -183,6 +194,13 @@ namespace ModBusMaster_Chicco
                 // Start listening for client requests.
                 server.Start();
 
+                // Trhead txrx gui
+                if (!threadTxRxIsRunning)
+                {
+                    threadTxRx = new Thread(new ThreadStart(handleTxRxGui));
+                    threadTxRx.Start();
+                }
+
                 // Enter the listening loop.
                 while (true)
                 {
@@ -197,11 +215,6 @@ namespace ModBusMaster_Chicco
 
                             // Con ThreadPool
                             ThreadPool.QueueUserWorkItem(this.handleClient, client);
-
-                            // Con Thread
-                            //Thread p = new Thread(new ParameterizedThreadStart(this.handleClient));
-                            //p.Priority = ThreadPriority.Highest;
-                            //p.Start(client);
                         }
                         catch (Exception err)
                         {
@@ -247,7 +260,8 @@ namespace ModBusMaster_Chicco
                         logStatus.Enqueue(DateTime.Now.ToString().Split(' ')[1] + " - " + "Incoming connection from " + IPAddress.Parse(((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString()) + " - FC" + received[7].ToString().PadLeft(2, '0') + "\n");
                     }
 
-                    receiving(received, i);
+                    RX_set = true;
+                    Console_print(" Rx <- ", received, i);
 
                     Console.Write("{0,20}{1}", "\nhandleClient:", "Received: ");
 
@@ -255,8 +269,6 @@ namespace ModBusMaster_Chicco
                     {
                         Console.Write(received[a].ToString() + " ");
                     }
-
-                    stopReceiving();
 
                     // TCP Slave ID -> 6
                     if ((bool)checkModBusAddress && received[6] != byte.Parse(ModBusAddress))
@@ -269,7 +281,7 @@ namespace ModBusMaster_Chicco
                     //received[0] == 0 && received[1] == 1 && received[2] == 0 && received[3] == 0
                     if (true)
                     {
-                        sending();
+                        TX_set = true;
 
                         byte[] response;
 
@@ -304,7 +316,7 @@ namespace ModBusMaster_Chicco
                             Console.WriteLine(err);
                         }
 
-                        stopSending(response);
+                        Console_print(" Tx -> ", response, response.Length);
                     }
 
                     // Shutdown and end connection
@@ -318,7 +330,6 @@ namespace ModBusMaster_Chicco
             }
             Console.WriteLine("{0,20}{1}", "\nhandleClient:", "Releasing thread handler client");
         }
-
 
         public static void DoEvents()
         {
@@ -351,6 +362,12 @@ namespace ModBusMaster_Chicco
             0x03 -> No of Registers Lo
              */
 
+            // Trhead txrx gui
+            if (!threadTxRxIsRunning)
+            {
+                threadTxRx = new Thread(new ThreadStart(handleTxRxGui));
+                threadTxRx.Start();
+            }
 
             while (true)
             {
@@ -364,102 +381,128 @@ namespace ModBusMaster_Chicco
                         int currentRow = 0;     // Riga tabella
 
                         Thread.Sleep(50);
+
                         //Leggo il buffer della seriale
+                        
                         int Length = serialPort.Read(received, 0, received.Length);
 
-                        // Aggiorno grafica received
-                        receiving(received, Length);
-
-                        Console.Write("Length: " + Length.ToString());
-
-                        // DEBUG
-                        Console_printByte("received: ", received, received.Length);
-
-                        stopReceiving();
-
-                        // RTU Slave ID -> 0
-                        if (checkModBusAddress && received[0] != byte.Parse(ModBusAddress))
+                        if (Length > 0)
                         {
-                            //MessageBox.Show("Slave ID messaggio ricevuto non valido (controllare ID del server o della richiesta del client", "Alert");
-                            Console.WriteLine("Slave ID messaggio ricevuto non valido (controllare ID del server o della richiesta del client");
+                            if (received[1] > 0)
+                            {
+                                logStatus.Enqueue(DateTime.Now.ToString().Split(' ')[1] + " - " + "Incoming query from " + main.stringSerialPort + " - FC" + received[1].ToString().PadLeft(2, '0') + "\n");
+                            }
+
+                            // Aggiorno grafica received
+                            RX_set = true;
+                            Console_print(" Rx <- ", received, Length);
+
+                            Console.Write("Length: " + Length.ToString());
+
+                            // DEBUG
+                            Console_printByte("received: ", received, received.Length);
+
+                            // RTU Slave ID -> 0
+                            if (checkModBusAddress && received[0] != byte.Parse(ModBusAddress))
+                            {
+                                //MessageBox.Show("Slave ID messaggio ricevuto non valido (controllare ID del server o della richiesta del client", "Alert");
+                                Console.WriteLine("Slave ID messaggio ricevuto non valido (controllare ID del server o della richiesta del client");
+                            }
+
+                            // Calcolo il CRC del messaggio ricevuto
+                            byte[] CRC_received = Calcolo_CRC(received, (Length - 2));
+
+                            // Controllo che il CRC calcolato coincida con quello contenuto nel messaggio NB: il CRC è little endian
+                            if (received[Length - 1] != CRC_received[1] || received[Length - 2] != CRC_received[0])
+                            {
+                                //MessageBox.Show("CRC ultimo pacchetto ricevuto non valido", "Alert");
+                                Console.WriteLine("CRC ultimo pacchetto ricevuto non valido");
+                                Console.WriteLine("CRC pacchetto: " + received[Length - 1].ToString() + " " + received[Length - 2].ToString());
+                                Console.WriteLine("CRC calcolato: " + CRC_received[1].ToString() + " " + CRC_received[0].ToString());
+
+                                log.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
+                                log2.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
+
+                                //NB: Non usare return altrimenti fermo il thread di ricezione
+                                //return; // Se CRC invalido non rispondo al messaggio e fermo il codice qui
+                            }
+
+                            TX_set = true;
+
+                            Console_printByte("received: ", received, Length);
+
+
+                            // Converto il dato ricevuto su RTU in ModBus TCP
+                            // uso la funzione che gestisce ModBus TCP anche per seriale spostando gli elementi nell'array
+                            byte[] receivedAsTcp = new byte[Length + 6];
+
+                            Array.Copy(received, 0, receivedAsTcp, 6, Length);
+                            
+                            Console_printByte("receivedAsTcp: ", receivedAsTcp, receivedAsTcp.Length);
+
+                            byte[] responseAsTcp;
+
+                            // Analizzo il pacchetto ricevuto
+                            try
+                            {
+                                responseAsTcp = Modbus_Runtime(receivedAsTcp, out currentTable, out currentRow);
+                            }
+                            catch (Exception error)
+                            {
+                                responseAsTcp = new byte[6];
+                                Console.WriteLine(error);
+                            }
+
+                            Console_printByte("responseAsTcp: ", responseAsTcp, responseAsTcp.Length);
+
+                            // Converto il dato da TCP per RTU:
+                            byte[] response = new byte[responseAsTcp.Length - 4];   //-6+2(CRC)
+
+                            //DEBGU
+                            Console.WriteLine("responseAsTcp.Length: " + responseAsTcp.Length.ToString());
+
+                            if (responseAsTcp.Length > 6)
+                            {
+                                Array.Copy(responseAsTcp, 6, response, 0, (responseAsTcp.Length - 6));
+                                Console_printByte("response: ", response, response.Length);
+
+                                // Calcolo il CRC del messaggio da inviare
+                                byte[] CRC_send = Calcolo_CRC(response, (response.Length - 2));
+
+                                //Aggiungo il CRC alla fine del pacchetto
+                                if (!swapCrcBytes)
+                                {
+                                    response[(response.Length - 2)] = CRC_send[0];  // LSB CRC
+                                    response[(response.Length - 1)] = CRC_send[1];  // MSB CRC
+                                }
+                                else
+                                {
+                                    response[(response.Length - 2)] = CRC_send[1];  // LSB CRC
+                                    response[(response.Length - 1)] = CRC_send[0];  // MSB CRC
+                                }
+
+                                // DEBUG
+                                Console_printByte("Sent: ", response, response.Length);
+
+                                // Send back a response.
+                                serialPort.Write(response, 0, response.Length);
+
+                                Console_print(" Tx -> ", response, response.Length);
+
+                                // Scorro la tabella alla riga letta
+                                ScrollTable(currentTable, currentRow);
+                            }
+                            else
+                            {
+
+                            }
                         }
-
-                        // Calcolo il CRC del messaggio ricevuto
-                        byte[] CRC_received = Calcolo_CRC(received, (Length - 2));
-
-                        // Controllo che il CRC calcolato coincida con quello contenuto nel messaggio NB: il CRC è little endian
-                        if (received[Length - 1] != CRC_received[1] || received[Length - 2] != CRC_received[0])
-                        {
-                            //MessageBox.Show("CRC ultimo pacchetto ricevuto non valido", "Alert");
-                            Console.WriteLine("CRC ultimo pacchetto ricevuto non valido");
-                            Console.WriteLine("CRC pacchetto: " + received[Length - 1].ToString() + " " + received[Length - 2].ToString());
-                            Console.WriteLine("CRC calcolato: " + CRC_received[1].ToString() + " " + CRC_received[0].ToString());
-
-                            log.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
-                            log2.Enqueue("Errore CRC pacchetto, ricevuto: [" + received[Length - 1].ToString("X").PadLeft(2, '0') + " " + received[Length - 2].ToString("X").PadLeft(2, '0') + "], calcolato: [" + CRC_received[1].ToString("X").PadLeft(2, '0') + " " + CRC_received[0].ToString("X").PadLeft(2, '0') + "]\n");
-
-                            //NB: Non usare return altrimenti fermo il thread di ricezione
-                            //return; // Se CRC invalido non rispondo al messaggio e fermo il codice qui
-                        }
-
-                        sending();
-
-                        Console_printByte("received: ", received, Length);
-
-
-                        // Converto il dato ricevuto su RTU in ModBus TCP
-                        // uso la funzione che gestisce ModBus TCP anche per seriale spostando gli elementi nell'array
-                        byte[] receivedAsTcp = new byte[Length + 6];
-                        Array.Copy(received, 0, receivedAsTcp, 6, Length);
-                        Console_printByte("receivedAsTcp: ", receivedAsTcp, receivedAsTcp.Length);
-
-                        byte[] responseAsTcp;
-
-                        // Analizzo il pacchetto ricevuto
-                        try
-                        {
-                            responseAsTcp = Modbus_Runtime(receivedAsTcp, out currentTable, out currentRow);
-                        }
-                        catch (Exception error)
-                        {
-                            responseAsTcp = new byte[6];
-                            Console.WriteLine(error);
-                        }
-
-                        Console_printByte("responseAsTcp: ", responseAsTcp, responseAsTcp.Length);
-
-                        // Converto il dato da TCP per RTU:
-                        byte[] response = new byte[responseAsTcp.Length - 4];   //-6+2(CRC)
-
-                        //DEBGU
-                        Console.WriteLine("responseAsTcp.Length: " + responseAsTcp.Length.ToString());
-
-                        Array.Copy(responseAsTcp, 6, response, 0, (responseAsTcp.Length - 6));
-                        Console_printByte("response: ", response, response.Length);
-
-                        // Calcolo il CRC del messaggio da inviare
-                        byte[] CRC_send = Calcolo_CRC(response, (response.Length - 2));
-
-                        //Aggiungo il CRC alla fine del pacchetto
-                        response[(response.Length - 2)] = CRC_send[0];  // LSB CRC
-                        response[(response.Length - 1)] = CRC_send[1];  // MSB CRC
-
-                        // DEBUG
-                        Console_printByte("Sent: ", response, response.Length);
-
-                        // Send back a response.
-                        serialPort.Write(response, 0, response.Length);
-
-                        stopSending(response);
-
-                        // Scorro la tabella alla riga letta
-                        ScrollTable(currentTable, currentRow);
                     }
                 }
 
-                catch (SocketException e)
+                catch (Exception err)
                 {
-                    Console.WriteLine("SocketException: {0}", e);
+                    Console.WriteLine(err);
                 }
             }
         }
@@ -1416,80 +1459,97 @@ namespace ModBusMaster_Chicco
             }
         }
 
-        //-------------------------------------------------------------------------------------
-        //----------------Funzioni aggiornamento icone lettura e scrittura-------------------
         //------------------------------------------------------------------------------------
-        public void sending()
+        //----------------Funzioni aggiornamento icone lettura e scrittura--------------------
+        //------------------------------------------------------------------------------------
+
+        public void handleTxRxGui()
         {
-            if (!disableGraphics)
+            threadTxRxIsRunning = true;
+
+            long timeout = 250;
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            long TX_epoch = now.ToUnixTimeMilliseconds();
+            long RX_epoch = now.ToUnixTimeMilliseconds();
+            long millis = now.ToUnixTimeMilliseconds();
+
+            uint counter = 0;
+
+            while (threadTxRxIsRunning)
             {
-                pictureBoxSending.Dispatcher.Invoke((Action)delegate
+                if (TX_set)
                 {
-                    //------------pictureBox gialla-------------
-                    pictureBoxSending.Background = Brushes.Yellow;
-                });
-            }
+                    if (!TX_on)
+                    {
+                        pictureBoxSending.Dispatcher.Invoke((Action)delegate
+                        {
+                            pictureBoxSending.Background = Brushes.Yellow;
+                        });
+                    }
 
-            if (type != "TCP")
-            {
-                Thread.Sleep(50);
-            }
-            //------------------------------------------            
-        }
+                    TX_set = false;
+                    TX_on = true;
 
-        public void stopSending(byte[] query)
-        {
-            if (!disableGraphics)
-            {
-                pictureBoxSending.Dispatcher.Invoke((Action)delegate
+                    now = DateTimeOffset.UtcNow;
+                    TX_epoch = now.ToUnixTimeMilliseconds();
+
+                    DoEvents();
+                }
+
+                if (RX_set)
                 {
-                    //------------pictureBox grigia-------------
-                    pictureBoxSending.Background = Brushes.LightGray;
-                });
-            }
-                
-            Console_print(" Tx -> ", query, query.Length);
+                    if (!RX_on)
+                    {
+                        pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
+                        {
+                            pictureBoxReceiving.Background = Brushes.Yellow;
+                        });
+                    }
 
-            if (type != "TCP")
-            {
-                Thread.Sleep(50);
-            }
-            //------------------------------------------         
-        }
+                    RX_set = false;
+                    RX_on = true;
 
-        public void receiving(byte[] response, int Length)
-        {
-            if (!disableGraphics)
-            {
-                pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
+                    now = DateTimeOffset.UtcNow;
+                    RX_epoch = now.ToUnixTimeMilliseconds();
+
+                    DoEvents();
+                }
+
+                now = DateTimeOffset.UtcNow;
+                millis = now.ToUnixTimeMilliseconds();
+
+                if ((millis - TX_epoch) > timeout && TX_on)
                 {
-                    //------------pictureBox gialla-------------
-                    pictureBoxReceiving.Background = Brushes.Yellow;
-                });
-            }
+                    TX_on = false;
 
-            Console_print(" Rx <- ", response, Length);
+                    pictureBoxSending.Dispatcher.Invoke((Action)delegate
+                    {
+                        pictureBoxSending.Background = Brushes.LightGray;
+                    });
 
-            if (type != "TCP")
-            {
-                Thread.Sleep(50);
-            }
-            //-----------------------------------------            
-        }
+                    DoEvents();
+                }
 
-        public void stopReceiving()
-        {
-            if (!disableGraphics)
-            {
-                pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
+                if ((millis - RX_epoch) > timeout && RX_on)
                 {
-                    //------------pictureBox grigia-------------
-                    pictureBoxReceiving.Background = Brushes.LightGray;
-                });
-            }
+                    RX_on = false;
 
-            Thread.Sleep(50);
-            //------------------------------------------        
+                    pictureBoxReceiving.Dispatcher.Invoke((Action)delegate
+                    {
+                        pictureBoxReceiving.Background = Brushes.LightGray;
+                    });
+
+                    DoEvents();
+                }
+
+                Thread.Sleep(5);
+
+                // debug
+                //counter += 1;
+                //Console.WriteLine(counter);
+            }
         }
 
         // Funzione che scorre la tabella passata alla riga richiesta

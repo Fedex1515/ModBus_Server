@@ -120,7 +120,7 @@
                                 </Rectangle.Fill>
                             </Rectangle>
                         </Viewbox>
-                        <TextBlock Text="Pause" VerticalAlignment="Center" FontSize="13" />
+                        <TextBlock Text="Edit" VerticalAlignment="Center" FontSize="13" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="ButtonStop" Click="ButtonStopLog_Click">
@@ -195,7 +195,7 @@
                     <TextBox x:Name="textBoxTcpClientPort" HorizontalAlignment="Left" Height="30" Margin="85,91,0,0" TextWrapping="Wrap" Text="502" VerticalAlignment="Top" Width="93" FontSize="14" Grid.Column="1"/>
                     <Button x:Name="buttonSerialActive" Content="Connect" HorizontalAlignment="Left" Margin="246,232,0,0" VerticalAlignment="Top" Width="92" Grid.Column="0" Click="buttonSerialActive_Click" FontSize="14" Height="30"/>
                     <Button x:Name="buttonTcpActive" Content="Start" HorizontalAlignment="Left" Margin="264.429,232,0,0" VerticalAlignment="Top" Width="92" Grid.Column="1" Click="buttonTcpActive_Click" Height="30" FontSize="14"/>
-                    <RichTextBox x:Name="richTextBoxStatus" Margin="10,273,10,10" Grid.ColumnSpan="2" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <RichTextBox x:Name="richTextBoxStatus" Margin="10,273,10,10" Grid.ColumnSpan="2" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" Background="#FF353535" Foreground="#FFFAFAFA" IsReadOnly="True" FontSize="14">
                         <FlowDocument/>
                     </RichTextBox>
                     <Button x:Name="buttonUpdateSerialList" Content="Update" HorizontalAlignment="Left" Margin="263,61,0,0" VerticalAlignment="Top" Width="75" Grid.Column="0" Height="30" Click="buttonUpdateSerialList_Click" FontSize="14"/>
@@ -206,7 +206,7 @@
             </TabItem>
             <TabItem Header="Coils (1bit)" FontSize="12">
                 <Grid Background="#FFE5E5E5">
-                    <DataGrid x:Name="dataGridViewCoils" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" FontSize="14" BeginningEdit="dataGridViewCoils_BeginningEdit">
+                    <DataGrid x:Name="dataGridViewCoils" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" FontSize="14" BeginningEdit="dataGridViewCoils_BeginningEdit" RowBackground="#FFF1F1F1">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Registro" Binding="{Binding Register}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
@@ -242,7 +242,7 @@
             </TabItem>
             <TabItem Header="Inputs (1 bit)" FontSize="12">
                 <Grid Background="#FFE5E5E5">
-                    <DataGrid x:Name="dataGridViewInput" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" BeginningEdit="dataGridViewInput_BeginningEdit" FontSize="14">
+                    <DataGrid x:Name="dataGridViewInput" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False" HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" BeginningEdit="dataGridViewInput_BeginningEdit" FontSize="14" RowBackground="#FFF1F1F1">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Registro" Binding="{Binding Register}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
@@ -278,7 +278,7 @@
             </TabItem>
             <TabItem Header="Input registers (1 word)" FontSize="12">
                 <Grid Background="#FFE5E5E5">
-                    <DataGrid x:Name="dataGridViewInputRegister" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False"  HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" BeginningEdit="dataGridViewInputRegister_BeginningEdit" FontSize="14">
+                    <DataGrid x:Name="dataGridViewInputRegister" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False"  HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" BeginningEdit="dataGridViewInputRegister_BeginningEdit" FontSize="14" RowBackground="#FFF1F1F1">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Registro" Binding="{Binding Register}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
@@ -319,7 +319,7 @@
             </TabItem>
             <TabItem Header="Holding registers (1 word)" FontSize="12">
                 <Grid Background="#FFE5E5E5">
-                    <DataGrid x:Name="dataGridViewHolding" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False"  HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" EnableColumnVirtualization="True" EnableRowVirtualization="True" FontSize="14" BeginningEdit="dataGridViewHolding_BeginningEdit">
+                    <DataGrid x:Name="dataGridViewHolding" HorizontalAlignment="Left" Margin="10,50,0,10" AutoGenerateColumns="False"  HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderThickness="1" EnableColumnVirtualization="True" EnableRowVirtualization="True" FontSize="14" BeginningEdit="dataGridViewHolding_BeginningEdit" RowBackground="#FFF1F1F1">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Registro" Binding="{Binding Register}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
@@ -365,8 +365,8 @@
                         <ColumnDefinition/>
                         <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
-                    <RichTextBox x:Name="richTextBoxPackets" Margin="10,41,10.429,10.143" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontSize="13" Grid.ColumnSpan="2" IsReadOnly="True">
-                        <FlowDocument>
+                    <RichTextBox x:Name="richTextBoxPackets" Margin="10,41,10.429,10.143" Block.LineHeight="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontSize="14" Grid.ColumnSpan="2" IsReadOnly="True" FontFamily="Consolas" Background="#FF353535" Foreground="#FFFAFAFA">
+                        <FlowDocument PageWidth="20000">
                             <Paragraph>
                                 <Run Text=""/>
                             </Paragraph>
@@ -396,11 +396,11 @@
                     <Label Content="Restart the application to apply changes in this page" HorizontalAlignment="Left" Margin="89,10,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="469" Grid.Column="1"/>
                     <CheckBox x:Name="checkBoxCheckModbusAddress" Content="Rispondi solo al ModBus address inserito" HorizontalAlignment="Left" Margin="28,57,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
                     <CheckBox x:Name="checkBoxCorreggiRegistriModbus" Content="Usa registri Modbus (Es: 40001) al posto dell'offset (Es: 0)" HorizontalAlignment="Left" Margin="28,80,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="3" Width="426" Click="checkBoxCorreggiRegistriModbus_CheckedChanged"/>
-                    <Label Content="Nome applicazione:" HorizontalAlignment="Left" Margin="28,123,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
-                    <TextBox x:Name="textBoxNomeApplicazione" HorizontalAlignment="Left" Height="23" Margin="133,127,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" Grid.Column="1"/>
-                    <CheckBox x:Name="checkBoxColorMenu" Content="Colore barra dei menu:" HorizontalAlignment="Left" Margin="28,170,0,0" Grid.Row="1" VerticalAlignment="Top" Checked="checkBoxColorMenu_CheckedChanged" Unchecked="checkBoxColorMenu_CheckedChanged" Grid.ColumnSpan="2"/>
-                    <Button x:Name="buttonColorMenu" Content="Color" HorizontalAlignment="Left" Margin="178,167,0,0" Grid.Row="1" VerticalAlignment="Top" Width="75" Click="buttonColorMenu_Click" Grid.Column="1"/>
-                    <CheckBox x:Name="checkBoxCloseConsolAfterBoot" Content="Chiudi console al termine dell'avvio" HorizontalAlignment="Left" Margin="28,203.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
+                    <Label Content="Nome applicazione:" HorizontalAlignment="Left" Margin="28,172.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
+                    <TextBox x:Name="textBoxNomeApplicazione" HorizontalAlignment="Left" Height="23" Margin="133,176.857,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" Grid.Column="1"/>
+                    <CheckBox x:Name="checkBoxColorMenu" Content="Colore barra dei menu:" HorizontalAlignment="Left" Margin="28,219.857,0,0" Grid.Row="1" VerticalAlignment="Top" Checked="checkBoxColorMenu_CheckedChanged" Unchecked="checkBoxColorMenu_CheckedChanged" Grid.ColumnSpan="2"/>
+                    <Button x:Name="buttonColorMenu" Content="Color" HorizontalAlignment="Left" Margin="178,216.857,0,0" Grid.Row="1" VerticalAlignment="Top" Width="75" Click="buttonColorMenu_Click" Grid.Column="1"/>
+                    <CheckBox x:Name="checkBoxCloseConsolAfterBoot" Content="Chiudi console al termine dell'avvio" HorizontalAlignment="Left" Margin="28,242.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
                     <CheckBox x:Name="checkBoxSavePackets" Content="Salva log pacchetti" HorizontalAlignment="Left" Margin="29.286,262.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.Column="2" Visibility="Hidden"/>
                     <Label Content="Percorso:" Grid.Column="2" HorizontalAlignment="Left" Margin="29.286,279.857,0,0" Grid.Row="1" VerticalAlignment="Top" Visibility="Hidden"/>
                     <TextBox x:Name="textBoxSaveLogPath" HorizontalAlignment="Left" Height="23" Margin="100.286,281.857,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="216" Grid.Column="2" Visibility="Hidden"/>
@@ -411,8 +411,10 @@
                     <Button x:Name="buttonColorCellRead" Content="Color" HorizontalAlignment="Left" Margin="309.286,26.857,0,0" Grid.Row="1" VerticalAlignment="Top" Width="75" Grid.Column="2" Click="buttonColorCellRead_Click_1"/>
                     <Button x:Name="buttonCellWrote" Content="Color" HorizontalAlignment="Left" Margin="309.286,60.857,0,0" Grid.Row="1" VerticalAlignment="Top" Width="75" Grid.Column="2" Click="buttonCellWrote_Click_1"/>
                     <Button x:Name="buttonColorCellError" Content="Color" HorizontalAlignment="Left" Margin="309.286,91.857,0,0" Grid.Row="1" VerticalAlignment="Top" Width="75" Grid.Column="2" Click="buttonColorCellError_Click_1"/>
-                    <Label Content="Offset focus registri:" HorizontalAlignment="Left" Margin="28,245.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
-                    <TextBox x:Name="textBoxOffsetFocusTabelle" HorizontalAlignment="Left" Height="23" Margin="133,249.857,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" Grid.Column="1" TextChanged="textBoxOffsetFocusTabelle_TextChanged" Text="5"/>
+                    <Label Content="Offset focus registri:" HorizontalAlignment="Left" Margin="28,277.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
+                    <TextBox x:Name="textBoxOffsetFocusTabelle" HorizontalAlignment="Left" Height="23" Margin="133,281.857,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" Grid.Column="1" TextChanged="textBoxOffsetFocusTabelle_TextChanged" Text="5"/>
+                    <CheckBox x:Name="CheckBoxSwapCrcBytes" Content="Swap CRC bytes" HorizontalAlignment="Left" Margin="28,102.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2" Checked="CheckBoxSwapCrcBytes_Checked" Unchecked="CheckBoxSwapCrcBytes_Checked"/>
+                    <TextBox x:Name="textBoxCurrentLanguage" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="235,368,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="69" TextChanged="TextBoxCurrentLanguage_TextChanged" IsEnabled="False"/>
                 </Grid>
             </TabItem>
         </TabControl>
