@@ -2070,6 +2070,8 @@ namespace ModBus_Server
                     if (!statoConsole)
                     {
                         apriConsole();
+
+                        this.Focus();
                     }
                     else
                     {
