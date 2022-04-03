@@ -9,8 +9,9 @@ https://github.com/Fedex1515/ModBus_Server/releases/download/2.1/ModBus_Server_v
 ### Manuale
 https://github.com/Fedex1515/ModBus_Server/blob/develop/ModBus_Server/Manuali/Guida_ModBus_Server_IT.pdf
 
-Branches:
+## Branches:
 -> master: release v2.1
+
 -> develop: sviluppo v2.3
 
 ## Info
