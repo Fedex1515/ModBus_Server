@@ -13,4 +13,4 @@ https://github.com/Fedex1515/ModBus_Server/blob/master/ModBus_Server/Manuali/Gui
 
 Si riportano a seguire un paio di screenshot del programma, si rimanda al manuale per una descrizione più dettagliata delle varie funzioni. 
 
-![alt text](https://github.com/Fedex1515/ModBus_Server/blob/master/ModBus_Server/Img/ModBus_Server_HoldingReg_00.PNG?raw=true)
+![alt text](https://github.com/Fedex1515/ModBus_Server/blob/develop/ModBus_Server/Img/ModBus_Server_HoldingReg_00.PNG?raw=true)
