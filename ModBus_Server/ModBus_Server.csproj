@@ -133,6 +133,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="Bozzetto_logo_server_modbus.xcf" />
+    <None Include="Json\Generico\CONFIGURAZIONE.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Lang\IT.json">
       <Generator>MSBuild:Compile</Generator>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -154,9 +157,7 @@
   <ItemGroup>
     <Resource Include="Bozzetto_logo_4.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Json\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <Resource Include="Img\ModBus_Server_HoldingReg_00.PNG" />
   </ItemGroup>

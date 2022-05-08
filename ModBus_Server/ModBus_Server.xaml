@@ -414,7 +414,8 @@
                     <Label Content="Offset focus registri:" HorizontalAlignment="Left" Margin="28,277.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
                     <TextBox x:Name="textBoxOffsetFocusTabelle" HorizontalAlignment="Left" Height="23" Margin="133,281.857,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" Grid.Column="1" TextChanged="textBoxOffsetFocusTabelle_TextChanged" Text="5"/>
                     <CheckBox x:Name="CheckBoxSwapCrcBytes" Content="Swap CRC bytes" HorizontalAlignment="Left" Margin="28,102.857,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2" Checked="CheckBoxSwapCrcBytes_Checked" Unchecked="CheckBoxSwapCrcBytes_Checked"/>
-                    <TextBox x:Name="textBoxCurrentLanguage" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="235,368,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="69" TextChanged="TextBoxCurrentLanguage_TextChanged" IsEnabled="False"/>
+                    <TextBox x:Name="textBoxCurrentLanguage" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="133,310,0,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Width="54" IsEnabled="False" Grid.RowSpan="2" TextChanged="TextBoxCurrentLanguage_TextChanged"/>
+                    <Label x:Name="labelSettings_4" Content="Current Language:" HorizontalAlignment="Left" Margin="28,310,0,0" Grid.Row="1" VerticalAlignment="Top" Grid.ColumnSpan="2" Grid.RowSpan="2"/>
                 </Grid>
             </TabItem>
         </TabControl>

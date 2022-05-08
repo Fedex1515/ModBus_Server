@@ -2122,6 +2122,13 @@ namespace ModBus_Server
         {
             ModBus.swapCrcBytes = (bool)CheckBoxSwapCrcBytes.IsChecked;
         }
+
+        private void TextBoxCurrentLanguage_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            language = textBoxCurrentLanguage.Text;
+
+            lang.loadLanguageTemplate(language);
+        }
     }
 
 
